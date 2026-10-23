@@ -85,3 +85,40 @@
 1. Run on Victor's C47 (convert build/ZONE47.txt with rejig).
 2. c47sim fix in Almanac 47 (above).
 3. Ideas: a key to set TZ from the stop; day / night shading.
+
+## Oct 23, 2026 - Branch claude/load47-loadlines: LOAD47, the load line zones (Victor's next step)
+
+- The zones, areas and seasonal periods of Load Lines 1966 Annex II on the same dot map, drawn for a date.
+  Sources: 46 CFR 42.30-5 to -35 (the 1966 text of regulations 46 and 48-52) and MSC.329(90) (regulation 47,
+  in force 1 Jan 2014). Ships over 100 m only for now.
+- tools/make_loadlines.py: each boundary written as a function of longitude (rhumb lines on the Mercator
+  latitude) or a test per area; the named places with the coordinates in PLACES (from charts, to check). Each
+  3-degree cell takes the area of its centre; 16 areas, cut into 89 rectangles. A colour picture of the cells
+  was checked by eye against the Annex II chart.
+- LOAD47: each area a label (name, season text, zone, two seasons MMDD, then its rectangles as numbers
+  10000000 c0 + 10000 c1 + 100 r0 + r1 with XEQ :RECT:). Drawing: per band the dots' rows as
+  (8^(m1+1) - 8^m0) / 7 (lower rows) and twice that (upper rows), SINT, AGRAPH per dot column. The same labels
+  find the cursor's area (mode 1) and give its texts (mode 2).
+- Patterns: tropical the dot's upper left pixel, winter upper left and lower right, summer none, land full.
+- Keys: 8 4 6 2 the cursor (as ELEM47: k div 10 - 6, k mod 10 - 3), 7 / 9 the date -/+ 15 days, 1 today.
+- 1 693 steps, about 9 KB, no IF, 4 DO. Start 26 000 steps, a cursor move 4 500, a new date 30 000.
+- Tests (tests/test_load47.py): every cell on 34 dates (each season change, the day before and the day), the
+  cursor texts at a cell of each area in January and July, a year on and back the same screen, the stack.
+- To do: the areas for ships of 100 m and under (a key to switch), the cursor on land (say so), Annex II's
+  chart against the cells cell by cell, the coordinates of the named places checked.
+
+## Oct 23, 2026 - LOAD47 faster (Victor: "run faster and less steps")
+
+- Profiled by label: the start was 26 000 steps (17 000 in the rectangles: decoding them and 8^m powers per
+  band), a cursor move 4 500 (all 89 rectangles decoded to find its area), a new date 30 000 (the whole screen).
+- Now the build works out the drawing: per area, band and dot column the word of its sea cells' lower rows
+  (land left out), consecutive equal columns joined: 190 pieces, pushed ready as L, n, row, x before
+  XEQ :PC: (no decoding on the calculator; SINT of L and 2L). Drawn in XOR, so the land and the cursor are
+  never touched and drawing again undoes it.
+- The zones drawn are kept in R89 (base 3, a digit an area). A new date runs every area's LBL :ZNOW: and
+  draws only the change: the upper pixels when summer <-> not summer, the lower when winter <-> not winter
+  (R90 = 0..3); an area with no change skips its pieces (RCL 90 X=0? RTN in its label). No CLLCD, no map.
+- The cursor's area: the row labels LBL 50-94, each row as runs (100 last column + area, LBL :RUN:).
+- Steps: start 12 973 (map 3 400 of them), a cursor move 371, a new date about 2 000 (no area changes) to
+  5 500 (three areas change, 23 Oct -> 7 Nov). Size: 3 131 steps, about 15.5 KB (was 9.3 KB: the pieces).
+- Tests as before, all OK.

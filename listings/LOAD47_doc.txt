@@ -1,0 +1,3207 @@
+      ; LOAD47 v0.1.0 - Load 47: the load line zones of the world on the C47 / R47
+      ; The International Convention on Load Lines 1966 (IMO), Annex II: zones, areas and seasonal periods
+      ; (regulation 47 as amended by MSC.329(90)); ships over 100 m. The dot map of ZONE47 (3 degrees a dot,
+      ; 81N to 54S); each 3-degree cell takes the area of its centre (tools/make_loadlines.py -> python/loadzones.py).
+      ; On the date (the clock's, or moved with 7 and 9) every area is drawn in its zone: tropical a dot in each
+      ; sea cell, winter two dots on a diagonal, summer nothing (land: the full 2 x 2 dot). A cursor (8 4 6 2)
+      ; shows its cell: latitude and longitude of the centre, the zone on the date, the area and its seasons.
+      ; INDICATIVE ONLY: 3 degrees a cell; the official boundaries are those of Annex II and its chart.
+      ; Keys: 8 4 6 2 the cursor (around at the edges), 7 15 days back, 9 15 days on, 1 the clock's date again,
+      ; 0 the end. The user's stack and LASTx are kept; at the end R20-R92 are cleared.
+      ; Screen 400 x 240, row 0 = bottom. Dot row i (0 the top) at rows 194 - 3i and 193 - 3i, dot column j at
+      ; x 20 + 3j and 21 + 3j (as ZONE47). The areas: LBL 01-nn (written by the build), each: its name STO 72,
+      ; its season text STO 73, its zone outside the seasons (0 summer, 1 tropical, 2 winter) STO 74, the seasons
+      ; (start MMDD, end MMDD, zone) STO 75-80 (none: 0), then XEQ :ZNOW:, RCL 90, X=0?, RTN (no change: no
+      ; drawing) and its pieces: L, n, row, x and XEQ :PC: each (n dot columns from x, the band from that row, L the
+      ; lower rows of its sea cells, worked out by the build). The cursor's area: the row labels LBL 50-94 (runs of areas).
+      ; The zones drawn are kept in R89 (base 3, a digit an area): a new date draws again, in XOR, only the
+      ; areas whose zone changed.
+      ; Registers: R20-R22 the map bands, R25 x, R30 the date's JD (noon), R31 the days moved, R32 the cursor row
+      ; i, R33 the key, R34 the text, R35 the cursor column j, R36 the mode (0 draw, 2 the texts of an area),
+      ; R37 the cursor's area (0: summer zone), R38 the area being run, R39 MMDD of the date, R40 the zone of the
+      ; area on the date, R41-R53 work, R60-R62 day month year (LBL :CAL:), R72-R80 the area, R88 the day and
+      ; month names, R89 the zones drawn, R90-R92 the change.
+   1  LBL "LOAD47"
+      ; the user's stack in the local registers (as ELEM47 v1.2.0): X..T, A..D with R↓, then LASTx
+   2  LocR 10
+   3  STO R.00
+   4  R↓
+   5  STO R.01
+   6  R↓
+   7  STO R.02
+   8  R↓
+   9  STO R.03
+  10  R↓
+  11  STO R.04
+  12  R↓
+  13  STO R.05
+  14  R↓
+  15  STO R.06
+  16  R↓
+  17  STO R.07
+  18  R↓
+  19  LASTx
+  20  STO R.08
+  21  XEQ :INIT:    (47)
+      ; ---- keys: 8 4 6 2 the cursor, 7 9 the date, 1 today, 0 the end ----
+  22  DO    (01)
+  23    DO    (02)
+  24      PAUSE 50
+  25      KEY? 33
+  26    WHILE    (02)
+  27    ENDDO    (02)
+  28    RCL 33
+  29    82
+  30    X≠Y?
+  31  WHILE    (01)
+        ; 8 4 6 2 (53 62 64 73): the row and column steps from the key code, as ELEM47: k div 10 - 6 rows,
+        ; k mod 10 - 3 columns; |dr| + |dc| = 1 for these four keys only
+  32    RCL 33
+  33    10
+  34    ÷
+  35    IP
+  36    6
+  37    -
+  38    STO 41
+  39    RCL 33
+  40    10
+  41    MOD
+  42    3
+  43    -
+  44    STO 42
+  45    ABS
+  46    RCL 41
+  47    ABS
+  48    +
+  49    1
+  50    X=Y?
+  51    XEQ :MOVE:    (00)
+        ; 7 (52) 15 days back, 9 (54) 15 days on, 1 (72) the clock's date
+  52    RCL 33
+  53    52
+  54    X=Y?
+  55    XEQ :BACK:    (17)
+  56    RCL 33
+  57    54
+  58    X=Y?
+  59    XEQ :FWD:    (18)
+  60    RCL 33
+  61    72
+  62    X=Y?
+  63    XEQ :TODAY:    (19)
+  64  ENDDO    (01)
+      ; ---- 0: the end: R20-R92 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
+  65  20.73
+  66  R-CLR
+  67  0
+  68  GRMOD
+  69  20
+  70  GRFNT
+  71  CLLCD
+  72  RCL R.08
+  73  STO L
+  74  RCL R.07
+  75  RCL R.06
+  76  RCL R.05
+  77  RCL R.04
+  78  RCL R.03
+  79  RCL R.02
+  80  RCL R.01
+  81  RCL R.00
+  82  RTN
+      ; ---- LBL :MOVE: the cursor off, one cell (rows 0-44, columns 0-119, around), the cursor on, the texts ----
+  83  LBL :MOVE:    (00)
+  84  XEQ :CURSOR:    (33)
+  85  RCL 32
+  86  RCL 41
+  87  +
+  88  45
+  89  +
+  90  45
+  91  MOD
+  92  STO 32
+  93  RCL 35
+  94  RCL 42
+  95  +
+  96  120
+  97  +
+  98  120
+  99  MOD
+ 100  STO 35
+ 101  XEQ :CURSOR:    (33)
+ 102  XEQ :INFO:    (34)
+ 103  RTN
+      ; ---- LBL :BACK:, LBL :FWD:, LBL :TODAY: the date - 15, + 15 days, the clock's; then only the areas whose
+      ; zone changed are drawn again (LBL :AREAS:), and the texts ----
+ 104  LBL :BACK:    (17)
+ 105  -15
+ 106  STO+ 31
+ 107  XEQ :NEWDAY:    (20)
+ 108  RTN
+ 109  LBL :FWD:    (18)
+ 110  15
+ 111  STO+ 31
+ 112  XEQ :NEWDAY:    (20)
+ 113  RTN
+ 114  LBL :TODAY:    (19)
+ 115  0
+ 116  STO 31
+ 117  LBL :NEWDAY:    (20)
+ 118  XEQ :DATE:    (21)
+ 119  XEQ :AREAS:    (22)
+ 120  XEQ :INFO:    (34)
+ 121  RTN
+      ; ---- LBL :DATE: R30 = the JD (noon) of the clock's date + R31 days; R39 = MMDD (LBL :CAL:) ----
+ 122  LBL :DATE:    (21)
+ 123  Date→ⅅ
+ 124  Time→ℸ
+ 125  ⅅℸ→J
+ 126  0.5
+ 127  +
+ 128  IP
+ 129  RCL 31
+ 130  +
+ 131  STO 30
+ 132  XEQ :CAL:    (45)
+ 133  RCL 61
+ 134  100
+ 135  ×
+ 136  RCL 60
+ 137  +
+ 138  STO 39
+ 139  RTN
+      ; ---- LBL :AREAS: every area (LBL 01-nn, R38) run in mode 0: each one whose zone changed drawn again, in
+      ; XOR (GRMOD 3: the cursor and the land are not touched) ----
+ 140  LBL :AREAS:    (22)
+ 141  0
+ 142  STO 36
+ 143  3
+ 144  GRMOD
+      ; ==== NAREAS (written by tools/build_load47.py: the number of areas)
+ 145  16
+ 146  STO 38
+ 147  DO    (03)
+ 148    XEQ IND 38
+ 149    DSE 38
+ 150  WHILE    (03)
+ 151  ENDDO    (03)
+ 152  0
+ 153  GRMOD
+ 154  RTN
+      ; ---- LBL :ZNOW: R40 = the zone of the area on the date R39: R74, or the zone of the season the date is
+      ; in (R75-R77, R78-R80; a season from start to end, around the new year when start > end) ----
+ 155  LBL :ZNOW:    (23)
+ 156  RCL 74
+ 157  STO 40
+ 158  RCL 75
+ 159  RCL 76
+ 160  RCL 77
+ 161  XEQ :SEASON:    (24)
+ 162  RCL 78
+ 163  RCL 79
+ 164  RCL 80
+ 165  XEQ :SEASON:    (24)
+      ; the change to draw, R90: 0 none, 1 the upper pixels, 2 the lower ones, 3 both. The zone drawn so far, R92,
+      ; is the digit k - 1 in base 3 of R89 (0 at the start: nothing drawn); up = sum(new) - sum(old) with
+      ; sum(z) = (z + 1) div 2 (tropical and winter have the upper pixel), low = z div 2 (winter only). Not in
+      ; mode 0 (the texts of an area): R90 = 0, nothing drawn, R89 kept
+ 166  0
+ 167  STO 90
+ 168  RCL 36
+ 169  X≠0?
+ 170  RTN
+ 171  3
+ 172  RCL 38
+ 173  1
+ 174  -
+ 175  Y^X
+ 176  STO 91
+ 177  RCL 89
+ 178  X<>Y
+ 179  ÷
+ 180  IP
+ 181  3
+ 182  MOD
+ 183  STO 92
+ 184  RCL 40
+ 185  X<>Y
+ 186  -
+ 187  RCL 91
+ 188  ×
+ 189  STO+ 89
+ 190  RCL 40
+ 191  1
+ 192  +
+ 193  2
+ 194  ÷
+ 195  IP
+ 196  RCL 92
+ 197  1
+ 198  +
+ 199  2
+ 200  ÷
+ 201  IP
+ 202  -
+ 203  ABS
+ 204  STO 90
+ 205  RCL 40
+ 206  2
+ 207  ÷
+ 208  IP
+ 209  RCL 92
+ 210  2
+ 211  ÷
+ 212  IP
+ 213  -
+ 214  ABS
+ 215  2
+ 216  ×
+ 217  STO+ 90
+ 218  RTN
+      ; LBL :SEASON: Z start, Y end, X zone: R40 = X when the date R39 is in the season (start 0: none)
+ 219  LBL :SEASON:    (24)
+ 220  STO 43
+ 221  R↓
+ 222  STO 44
+ 223  R↓
+ 224  STO 45
+ 225  X=0?
+ 226  RTN
+      ; in the season: (date >= start) + (date <= end) counted in R46; needed 2, or 1 when the season runs over
+      ; the new year (start > end)
+ 227  0
+ 228  STO 46
+ 229  RCL 45
+ 230  RCL 39
+ 231  X≥Y?
+ 232  XEQ :INC:    (25)
+ 233  RCL 44
+ 234  RCL 39
+ 235  X≤Y?
+ 236  XEQ :INC:    (25)
+ 237  2
+ 238  STO 49
+ 239  RCL 45
+ 240  RCL 44
+ 241  X<Y?
+ 242  XEQ :NEED1:    (26)
+ 243  RCL 46
+ 244  RCL 49
+ 245  X>Y?
+ 246  RTN
+ 247  RCL 43
+ 248  STO 40
+ 249  RTN
+ 250  LBL :INC:    (25)
+ 251  1
+ 252  STO+ 46
+ 253  RTN
+ 254  LBL :NEED1:    (26)
+ 255  1
+ 256  STO 49
+ 257  RTN
+      ; ---- LBL :PC: a piece of the area R38: T = L (the lower rows of its sea cells; the upper rows 2L), Z = n dot
+      ; columns, Y = the band's bottom row, X = x of its first column (pushed by the area's label after its
+      ; RCL 90 X=0? RTN: an area whose zone did not change skips its pieces). Its upper rows at x (LBL :PUP:),
+      ; its lower rows at x + 1 (LBL :PLO:), as the change R90 says ----
+ 258  LBL :PC:    (27)
+ 259  STO 25
+ 260  R↓
+ 261  STO 45
+ 262  R↓
+ 263  STO 46
+ 264  R↓
+ 265  STO 48
+ 266  2
+ 267  ×
+ 268  SINT
+ 269  STO 49
+ 270  RCL 48
+ 271  SINT
+ 272  STO 48
+ 273  RCL 90
+ 274  2
+ 275  MOD
+ 276  X≠0?
+ 277  XEQ :PUP:    (28)
+ 278  2
+ 279  RCL 90
+ 280  X≥Y?
+ 281  XEQ :PLO:    (29)
+ 282  RTN
+      ; LBL :PUP: the upper rows, LBL :PLO: the lower rows (x + 1): LBL :PL: with the pattern in R50
+ 283  LBL :PUP:    (28)
+ 284  RCL 49
+ 285  STO 50
+ 286  RCL 45
+ 287  RCL 25
+ 288  XEQ :PL:    (30)
+ 289  RTN
+ 290  LBL :PLO:    (29)
+ 291  RCL 48
+ 292  STO 50
+ 293  RCL 45
+ 294  RCL 25
+ 295  1
+ 296  +
+ 297  XEQ :PL:    (30)
+ 298  RTN
+      ; LBL :PL: Y the row, X the column: R46 columns, every third pixel column (AGRAPH moves X on by 1, + 2)
+ 299  LBL :PL:    (30)
+ 300  RCL 46
+ 301  STO 47
+ 302  R↓
+ 303  DO    (04)
+ 304    AGRAPH 50
+ 305    2
+ 306    +
+ 307    DSE 47
+ 308  WHILE    (04)
+ 309  ENDDO    (04)
+ 310  RTN
+      ; ---- LBL :FIND: the area of the cursor's cell (row R32, column R35), R37 (0: summer zone): the row's label
+      ; LBL 50 + i, its runs "100 last column + area" in order, each LBL :RUN: (R43 = 1 once found) ----
+ 311  LBL :FIND:    (31)
+ 312  0
+ 313  STO 37
+ 314  STO 43
+ 315  RCL 32
+ 316  50
+ 317  +
+ 318  STO 41
+ 319  XEQ IND 41
+ 320  RTN
+ 321  LBL :RUN:    (32)
+ 322  RCL 43
+ 323  X≠0?
+ 324  RTN
+ 325  R↓
+ 326  STO 53
+ 327  100
+ 328  ÷
+ 329  IP
+ 330  RCL 35
+ 331  X>Y?
+ 332  RTN
+ 333  RCL 53
+ 334  100
+ 335  MOD
+ 336  STO 37
+ 337  1
+ 338  STO 43
+ 339  RTN
+      ; ---- LBL :CURSOR: the cell R32, R35 inverted (XOR): 4 columns of 4 rows (the dot and the gaps round it,
+      ; x 19 + 3j to 22 + 3j, rows 192 - 3i to 195 - 3i); twice = off ----
+ 340  LBL :CURSOR:    (33)
+ 341  3
+ 342  GRMOD
+ 343  RCL 32
+ 344  3
+ 345  ×
+ 346  CHS
+ 347  192
+ 348  +
+ 349  RCL 35
+ 350  3
+ 351  ×
+ 352  19
+ 353  +
+ 354  AGRAPH 26
+ 355  AGRAPH 26
+ 356  AGRAPH 26
+ 357  AGRAPH 26
+ 358  0
+ 359  GRMOD
+ 360  RTN
+      ; ---- LBL :INFO: the texts of the cursor: line 1 the date, latitude and longitude; line 2 the zone on the
+      ; date and the area; under the map the area's seasons. The cursor's area: the areas run in mode 1 ----
+ 361  LBL :INFO:    (34)
+ 362  XEQ :FIND:    (31)
+ 363  197
+ 364  0
+ 365  CLLCDxy
+ 366  0
+ 367  GRMOD
+ 368  21
+ 369  GRFNT
+ 370  RCL 30
+ 371  XEQ :DTEXT:    (43)
+ 372  RCL 34
+ 373  218
+ 374  14
+ 375  ATEXT Z
+ 376  XEQ :LATLON:    (40)
+ 377  RCL 34
+ 378  218
+ 379  230
+ 380  ATEXT Z
+      ; line 2: the zone and the area (the area found again for its texts and zone)
+ 381  RCL 37
+ 382  X=0?
+ 383  XEQ :SUMMER:    (35)
+ 384  RCL 37
+ 385  X≠0?
+ 386  XEQ :FOUND:    (36)
+ 387  RCL 34
+ 388  198
+ 389  14
+ 390  ATEXT Z
+      ; under the map: the seasons
+ 391  1
+ 392  GRMOD
+ 393  "                                                  "
+ 394  36
+ 395  14
+ 396  ATEXT Z
+ 397  0
+ 398  GRMOD
+ 399  RCL 73
+ 400  36
+ 401  14
+ 402  ATEXT Z
+ 403  RTN
+      ; LBL :SUMMER: no area: the Summer Zones
+ 404  LBL :SUMMER:    (35)
+ 405  "SUMMER zone"
+ 406  STO 34
+ 407  "Summer all year"
+ 408  STO 73
+ 409  RTN
+      ; LBL :FOUND: the area R37 run again in mode 2 (texts only: LBL :ZNOW: gives the zone, LBL :PC: draws nothing)
+ 410  LBL :FOUND:    (36)
+ 411  2
+ 412  STO 36
+ 413  RCL 37
+ 414  STO 38
+ 415  XEQ IND 38
+ 416  0
+ 417  STO 36
+ 418  RCL 40
+ 419  X=0?
+ 420  XEQ :ZS:    (37)
+ 421  RCL 40
+ 422  1
+ 423  X=Y?
+ 424  XEQ :ZT:    (38)
+ 425  RCL 40
+ 426  2
+ 427  X=Y?
+ 428  XEQ :ZW:    (39)
+ 429  " - "
+ 430  x→α 34
+ 431  RCL 72
+ 432  x→α 34
+ 433  RTN
+      ; LBL :ZS:, :ZT:, :ZW: the name of the zone in R34
+ 434  LBL :ZS:    (37)
+ 435  "SUMMER"
+ 436  STO 34
+ 437  RTN
+ 438  LBL :ZT:    (38)
+ 439  "TROPICAL"
+ 440  STO 34
+ 441  RTN
+ 442  LBL :ZW:    (39)
+ 443  "WINTER"
+ 444  STO 34
+ 445  RTN
+      ; ---- LBL :LATLON: R34 = " 34.5N 18E": the centre of the cell, latitude 79.5 - 3i, longitude -171 + 3j ----
+ 446  LBL :LATLON:    (40)
+ 447  RCL 32
+ 448  3
+ 449  ×
+ 450  CHS
+ 451  79.5
+ 452  +
+ 453  STO 41
+ 454  " "
+ 455  STO 34
+ 456  RCL 41
+ 457  ABS
+ 458  IP
+ 459  αIP 34
+ 460  "N "
+ 461  STO 48
+ 462  RCL 41
+ 463  X<0?
+ 464  XEQ :SOUTH:    (41)
+ 465  ".5"
+ 466  x→α 34
+ 467  RCL 48
+ 468  x→α 34
+ 469  RCL 35
+ 470  3
+ 471  ×
+ 472  171
+ 473  -
+ 474  180
+ 475  +
+ 476  360
+ 477  MOD
+ 478  180
+ 479  -
+ 480  STO 41
+ 481  ABS
+ 482  αIP 34
+ 483  "E"
+ 484  STO 48
+ 485  RCL 41
+ 486  X<0?
+ 487  XEQ :WEST:    (42)
+ 488  RCL 48
+ 489  x→α 34
+ 490  RTN
+ 491  LBL :SOUTH:    (41)
+ 492  "S "
+ 493  STO 48
+ 494  RTN
+ 495  LBL :WEST:    (42)
+ 496  "W"
+ 497  STO 48
+ 498  RTN
+      ; ---- LBL :DTEXT: R34 = "Fri 23 Oct 2026" for the JD in X (noon) ----
+ 499  LBL :DTEXT:    (43)
+ 500  XEQ :CAL:    (45)
+ 501  RCL 44
+ 502  1
+ 503  +
+ 504  7
+ 505  MOD
+ 506  3
+ 507  ×
+ 508  XEQ :NAME3:    (44)
+ 509  STO 34
+ 510  " "
+ 511  x→α 34
+ 512  RCL 60
+ 513  αIP 34
+ 514  " "
+ 515  x→α 34
+ 516  RCL 61
+ 517  3
+ 518  ×
+ 519  18
+ 520  +
+ 521  XEQ :NAME3:    (44)
+ 522  x→α 34
+ 523  " "
+ 524  x→α 34
+ 525  RCL 62
+ 526  αIP 34
+ 527  RTN
+      ; LBL :NAME3: 3 letters from position X of R88 (the days at 0, the months at 21 + 3 (month - 1))
+ 528  LBL :NAME3:    (44)
+ 529  RCL 88
+ 530  STO 47
+ 531  R↓
+ 532  αSL 47
+ 533  3
+ 534  αLEFT 47
+ 535  RTN
+      ; ---- LBL :CAL: the calendar date of the JD in X (Fliegel and Van Flandern, as ZONE47): R44 the day number,
+      ; R60 the day, R61 the month, R62 the year (R45-R47, R55-R56 work) ----
+ 536  LBL :CAL:    (45)
+ 537  0.5
+ 538  +
+ 539  IP
+ 540  STO 44
+ 541  32044
+ 542  +
+ 543  STO 45
+ 544  4
+ 545  ×
+ 546  3
+ 547  +
+ 548  146097
+ 549  ÷
+ 550  IP
+ 551  STO 46
+ 552  146097
+ 553  ×
+ 554  4
+ 555  ÷
+ 556  IP
+ 557  STO- 45
+ 558  RCL 45
+ 559  4
+ 560  ×
+ 561  3
+ 562  +
+ 563  1461
+ 564  ÷
+ 565  IP
+ 566  STO 47
+ 567  1461
+ 568  ×
+ 569  4
+ 570  ÷
+ 571  IP
+ 572  STO- 45
+ 573  RCL 45
+ 574  5
+ 575  ×
+ 576  2
+ 577  +
+ 578  153
+ 579  ÷
+ 580  IP
+ 581  STO 55
+ 582  153
+ 583  ×
+ 584  2
+ 585  +
+ 586  5
+ 587  ÷
+ 588  IP
+ 589  RCL 45
+ 590  X<>Y
+ 591  -
+ 592  1
+ 593  +
+ 594  STO 60
+ 595  RCL 55
+ 596  10
+ 597  ÷
+ 598  IP
+ 599  STO 56
+ 600  -12
+ 601  ×
+ 602  RCL 55
+ 603  +
+ 604  3
+ 605  +
+ 606  STO 61
+ 607  RCL 46
+ 608  100
+ 609  ×
+ 610  RCL 47
+ 611  +
+ 612  4800
+ 613  -
+ 614  RCL 56
+ 615  +
+ 616  STO 62
+ 617  RTN
+      ; ---- LBL :LEGEND: the keys and the patterns (tinyFont), drawn with each date ----
+ 618  LBL :LEGEND:    (46)
+ 619  10
+ 620  GRFNT
+ 621  "LOAD LINES 1966 ANNEX II (IMO), SHIPS OVER 100 m"
+ 622  24
+ 623  14
+ 624  ATEXT Z
+ 625  "PATTERN: . TROPICAL  : WINTER  BLANK SUMMER - INDICATIVE"
+ 626  14
+ 627  14
+ 628  ATEXT Z
+ 629  "8 4 6 2: CURSOR   7 9: DATE -+15 d   1: TODAY   0: END"
+ 630  4
+ 631  14
+ 632  ATEXT Z
+ 633  21
+ 634  GRFNT
+ 635  RTN
+      ; ---- LBL :INIT: the start: the patterns, the names, the cursor (34.5N 018E: off Libya), the screen ----
+ 636  LBL :INIT:    (47)
+ 637  WSIZE 64
+ 638  1111#2
+ 639  STO 26
+ 640  "SunMonTueWedThuFriSatJanFebMarAprMayJunJulAugSepOctNovDec"
+ 641  STO 88
+ 642  15
+ 643  STO 32
+ 644  63
+ 645  STO 35
+      ; the screen: the map, the legend, the cursor; R89 = 0 (no area drawn yet), then the date's areas
+ 646  CLLCD
+ 647  0
+ 648  GRMOD
+ 649  XEQ :MAP:    (48)
+ 650  XEQ :LEGEND:    (46)
+ 651  0
+ 652  STO 89
+ 653  XEQ :CURSOR:    (33)
+ 654  XEQ :TODAY:    (19)
+ 655  RTN
+      ; ---- LBL :MAP: the dot map, one dot column a step group (as ZONE47) ----
+ 656  LBL :MAP:    (48)
+ 657  20
+ 658  STO 25
+      ; ==== MAP (written by tools/build_zone47.py from python/worldmap.py)
+ 659  0
+ 660  0
+ 661  0
+ 662  XEQ :COL:    (49)
+ 663  0
+ 664  0
+ 665  0
+ 666  XEQ :COL:    (49)
+ 667  3674210304
+ 668  0
+ 669  0
+ 670  XEQ :COL:    (49)
+ 671  29444014080
+ 672  0
+ 673  0
+ 674  XEQ :COL:    (49)
+ 675  29450305536
+ 676  0
+ 677  0
+ 678  XEQ :COL:    (49)
+ 679  29450305536
+ 680  0
+ 681  0
+ 682  XEQ :COL:    (49)
+ 683  29450305536
+ 684  0
+ 685  0
+ 686  XEQ :COL:    (49)
+ 687  29444014080
+ 688  0
+ 689  0
+ 690  XEQ :COL:    (49)
+ 691  29444014080
+ 692  0
+ 693  0
+ 694  XEQ :COL:    (49)
+ 695  29444014080
+ 696  0
+ 697  0
+ 698  XEQ :COL:    (49)
+ 699  3674210304
+ 700  0
+ 701  0
+ 702  XEQ :COL:    (49)
+ 703  3680501760
+ 704  0
+ 705  0
+ 706  XEQ :COL:    (49)
+ 707  3680501760
+ 708  0
+ 709  0
+ 710  XEQ :COL:    (49)
+ 711  29451091968
+ 712  0
+ 713  0
+ 714  XEQ :COL:    (49)
+ 715  29451190272
+ 716  0
+ 717  0
+ 718  XEQ :COL:    (49)
+ 719  29451202560
+ 720  0
+ 721  0
+ 722  XEQ :COL:    (49)
+ 723  235609634523
+ 724  0
+ 725  0
+ 726  XEQ :COL:    (49)
+ 727  1859107272411
+ 728  13194139533312
+ 729  0
+ 730  XEQ :COL:    (49)
+ 731  1884877076187
+ 732  14843406974976
+ 733  0
+ 734  XEQ :COL:    (49)
+ 735  1884877076187
+ 736  15049565405184
+ 737  0
+ 738  XEQ :COL:    (49)
+ 739  1884877076187
+ 740  15075335208960
+ 741  0
+ 742  XEQ :COL:    (49)
+ 743  1884877076187
+ 744  15075335208960
+ 745  0
+ 746  XEQ :COL:    (49)
+ 747  1884877076187
+ 748  15078959087616
+ 749  0
+ 750  XEQ :COL:    (49)
+ 751  14872858179291
+ 752  15078959087616
+ 753  0
+ 754  XEQ :COL:    (49)
+ 755  1884877076187
+ 756  15079009419264
+ 757  0
+ 758  XEQ :COL:    (49)
+ 759  15079016609499
+ 760  15050018390016
+ 761  0
+ 762  XEQ :COL:    (49)
+ 763  15079016609499
+ 764  14843457306624
+ 765  0
+ 766  XEQ :COL:    (49)
+ 767  15053190182619
+ 768  14843866251264
+ 769  0
+ 770  XEQ :COL:    (49)
+ 771  15078959986395
+ 772  14843866251264
+ 773  0
+ 774  XEQ :COL:    (49)
+ 775  15078959986395
+ 776  14843414052864
+ 777  0
+ 778  XEQ :COL:    (49)
+ 779  15078556546779
+ 780  15078556532952
+ 781  0
+ 782  XEQ :COL:    (49)
+ 783  13426125289179
+ 784  13197763524315
+ 785  13194139533312
+ 786  XEQ :COL:    (49)
+ 787  13223590737624
+ 788  898779
+ 789  14843406975192
+ 790  XEQ :COL:    (49)
+ 791  13223590737600
+ 792  403551963
+ 793  15049622927067
+ 794  XEQ :COL:    (49)
+ 795  14872858179264
+ 796  403551963
+ 797  15079016609499
+ 798  XEQ :COL:    (49)
+ 799  14847038043648
+ 800  898779
+ 801  15079016609280
+ 802  XEQ :COL:    (49)
+ 803  14846635390464
+ 804  898779
+ 805  15079016607744
+ 806  XEQ :COL:    (49)
+ 807  14843407873536
+ 808  112347
+ 809  15079016595456
+ 810  XEQ :COL:    (49)
+ 811  14843407085568
+ 812  14043
+ 813  15079016595456
+ 814  XEQ :COL:    (49)
+ 815  15075335222784
+ 816  14043
+ 817  15079016497152
+ 818  XEQ :COL:    (49)
+ 819  15078959087616
+ 820  14043
+ 821  15079015710720
+ 822  XEQ :COL:    (49)
+ 823  15079009419264
+ 824  219
+ 825  15078959087616
+ 826  XEQ :COL:    (49)
+ 827  15079009419264
+ 828  219
+ 829  15078556434432
+ 830  XEQ :COL:    (49)
+ 831  15079009419264
+ 832  27
+ 833  15078556434432
+ 834  XEQ :COL:    (49)
+ 835  15078556434432
+ 836  27
+ 837  15049565405184
+ 838  XEQ :COL:    (49)
+ 839  15078556434432
+ 840  27
+ 841  13194139533312
+ 842  XEQ :COL:    (49)
+ 843  15078556434432
+ 844  0
+ 845  0
+ 846  XEQ :COL:    (49)
+ 847  15075335208960
+ 848  0
+ 849  0
+ 850  XEQ :COL:    (49)
+ 851  15075335208960
+ 852  0
+ 853  0
+ 854  XEQ :COL:    (49)
+ 855  15075335208960
+ 856  0
+ 857  0
+ 858  XEQ :COL:    (49)
+ 859  15049968058368
+ 860  0
+ 861  0
+ 862  XEQ :COL:    (49)
+ 863  13194542186496
+ 864  0
+ 865  0
+ 866  XEQ :COL:    (49)
+ 867  402653184
+ 868  29451091968
+ 869  0
+ 870  XEQ :COL:    (49)
+ 871  0
+ 872  235609620480
+ 873  0
+ 874  XEQ :COL:    (49)
+ 875  98331
+ 876  1884877074432
+ 877  0
+ 878  XEQ :COL:    (49)
+ 879  7176411
+ 880  15079016607744
+ 881  0
+ 882  XEQ :COL:    (49)
+ 883  897243
+ 884  15079016607744
+ 885  0
+ 886  XEQ :COL:    (49)
+ 887  112344
+ 888  15079016595456
+ 889  0
+ 890  XEQ :COL:    (49)
+ 891  14019
+ 892  15079016595456
+ 893  0
+ 894  XEQ :COL:    (49)
+ 895  56735427
+ 896  15079016607744
+ 897  0
+ 898  XEQ :COL:    (49)
+ 899  57521883
+ 900  15079016609472
+ 901  0
+ 902  XEQ :COL:    (49)
+ 903  13194599708352
+ 904  1884877076184
+ 905  1881195675648
+ 906  XEQ :COL:    (49)
+ 907  13197820933851
+ 908  1884877076187
+ 909  15078959087616
+ 910  XEQ :COL:    (49)
+ 911  13197820933824
+ 912  1884877076187
+ 913  15079015710720
+ 914  XEQ :COL:    (49)
+ 915  13223584446171
+ 916  1884877076187
+ 917  15079016497152
+ 918  XEQ :COL:    (49)
+ 919  13223590737624
+ 920  1884877076187
+ 921  15079016497152
+ 922  XEQ :COL:    (49)
+ 923  29451204315
+ 924  1884877076187
+ 925  15079015710720
+ 926  XEQ :COL:    (49)
+ 927  29451204123
+ 928  1884877076187
+ 929  15079015710720
+ 930  XEQ :COL:    (49)
+ 931  3681400347
+ 932  1884877076187
+ 933  15078959087616
+ 934  XEQ :COL:    (49)
+ 935  3681400347
+ 936  15079016609499
+ 937  15078556434432
+ 938  XEQ :COL:    (49)
+ 939  3681400539
+ 940  15078613956315
+ 941  15049565405184
+ 942  XEQ :COL:    (49)
+ 943  460175067
+ 944  15079016609472
+ 945  0
+ 946  XEQ :COL:    (49)
+ 947  3681400539
+ 948  15079016609280
+ 949  235552112640
+ 950  XEQ :COL:    (49)
+ 951  3681400539
+ 952  15079016607744
+ 953  1884416901120
+ 954  XEQ :COL:    (49)
+ 955  3681400539
+ 956  15079010205696
+ 957  0
+ 958  XEQ :COL:    (49)
+ 959  235609634523
+ 960  15053239615488
+ 961  0
+ 962  XEQ :COL:    (49)
+ 963  209839830747
+ 964  15078959087616
+ 965  0
+ 966  XEQ :COL:    (49)
+ 967  1652948842203
+ 968  15078556434432
+ 969  0
+ 970  XEQ :COL:    (49)
+ 971  1652948842203
+ 972  15075335208960
+ 973  0
+ 974  XEQ :COL:    (49)
+ 975  1652948842203
+ 976  15075335208960
+ 977  0
+ 978  XEQ :COL:    (49)
+ 979  29451204315
+ 980  15078556434432
+ 981  0
+ 982  XEQ :COL:    (49)
+ 983  235609634523
+ 984  15078959087616
+ 985  0
+ 986  XEQ :COL:    (49)
+ 987  29451204315
+ 988  15079015710720
+ 989  0
+ 990  XEQ :COL:    (49)
+ 991  29451204315
+ 992  15079016497152
+ 993  0
+ 994  XEQ :COL:    (49)
+ 995  235609634523
+ 996  15079009517568
+ 997  0
+ 998  XEQ :COL:    (49)
+ 999  235609634523
+1000  15078959087616
+1001  0
+1002  XEQ :COL:    (49)
+1003  235609634523
+1004  15078556434432
+1005  0
+1006  XEQ :COL:    (49)
+1007  235609634523
+1008  15078556434432
+1009  0
+1010  XEQ :COL:    (49)
+1011  15079016609499
+1012  15078959087616
+1013  0
+1014  XEQ :COL:    (49)
+1015  15079016609499
+1016  15079009431552
+1017  0
+1018  XEQ :COL:    (49)
+1019  15079016609499
+1020  15079016609280
+1021  0
+1022  XEQ :COL:    (49)
+1023  15079016609499
+1024  15079015724760
+1025  0
+1026  XEQ :COL:    (49)
+1027  1884877076187
+1028  15079016497368
+1029  0
+1030  XEQ :COL:    (49)
+1031  1884877076187
+1032  15078613843971
+1033  0
+1034  XEQ :COL:    (49)
+1035  1884877076187
+1036  15078556436163
+1037  0
+1038  XEQ :COL:    (49)
+1039  235609634523
+1040  15078556448451
+1041  3674210304
+1042  XEQ :COL:    (49)
+1043  235609634523
+1044  15075335222976
+1045  3681288192
+1046  XEQ :COL:    (49)
+1047  235609634523
+1048  15078613057752
+1049  29451091968
+1050  XEQ :COL:    (49)
+1051  235609634520
+1052  884760
+1053  235609522176
+1054  XEQ :COL:    (49)
+1055  235609634523
+1056  98304
+1057  235608735744
+1058  XEQ :COL:    (49)
+1059  235609634523
+1060  13194139533312
+1061  235608735744
+1062  XEQ :COL:    (49)
+1063  29451204288
+1064  13194139533504
+1065  1884876177408
+1066  XEQ :COL:    (49)
+1067  29451204288
+1068  13194139533528
+1069  1884876963840
+1070  XEQ :COL:    (49)
+1071  1678718645763
+1072  13194139533531
+1073  235609522176
+1074  XEQ :COL:    (49)
+1075  1884876288219
+1076  27
+1077  1884877062144
+1078  XEQ :COL:    (49)
+1079  1884869898432
+1080  27
+1081  1884877062144
+1082  XEQ :COL:    (49)
+1083  29444014080
+1084  3
+1085  29451204096
+1086  XEQ :COL:    (49)
+1087  29444014080
+1088  0
+1089  13197820919808
+1090  XEQ :COL:    (49)
+1091  29450305536
+1092  0
+1093  459276288
+1094  XEQ :COL:    (49)
+1095  29444898816
+1096  0
+1097  0
+1098  XEQ :COL:    (49)
+1099  29451190272
+1100  0
+1101  0
+1102  XEQ :COL:    (49)
+1103  3681288192
+1104  0
+1105  0
+1106  XEQ :COL:    (49)
+1107  3674210304
+1108  0
+1109  0
+1110  XEQ :COL:    (49)
+1111  3674210304
+1112  0
+1113  192
+1114  XEQ :COL:    (49)
+1115  3674210304
+1116  0
+1117  1536
+1118  XEQ :COL:    (49)
+1119  29444014080
+1120  0
+1121  12288
+1122  XEQ :COL:    (49)
+1123  3623878656
+1124  0
+1125  110592
+1126  XEQ :COL:    (49)
+1127  3623878656
+1128  0
+1129  0
+1130  XEQ :COL:    (49)
+1131  3221225472
+1132  0
+1133  0
+1134  XEQ :COL:    (49)
+1135  3623878656
+1136  0
+1137  0
+1138  XEQ :COL:    (49)
+1139  RTN
+1140  LBL :COL:    (49)
+1141  SINT
+1142  STO 20
+1143  DROP
+1144  SINT
+1145  STO 21
+1146  DROP
+1147  SINT
+1148  STO 22
+1149  DROP
+1150  61
+1151  RCL 25
+1152  AGRAPH 20
+1153  AGRAPH 20
+1154  106
+1155  RCL 25
+1156  AGRAPH 21
+1157  AGRAPH 21
+1158  151
+1159  RCL 25
+1160  AGRAPH 22
+1161  AGRAPH 22
+1162  3
+1163  STO+ 25
+1164  RTN
+      ; ==== AREAS (written by tools/build_load47.py from python/loadzones.py: LBL nn, the name STO 72, the
+      ; season text STO 73, the zone STO 74, the seasons STO 75-80, XEQ :ZNOW:, RCL 90, X=0?, RTN, the pieces
+      ; (L n row x) with XEQ :PC:, RTN;
+      ; then the rows LBL 50 + i: their runs "100 last column + area" with XEQ :RUN:, RTN)
+1165  LBL 01
+1166  "Tropical Zone"
+1167  STO 72
+1168  "Tropical all year"
+1169  STO 73
+1170  1
+1171  STO 74
+1172  0
+1173  STO 75
+1174  0
+1175  STO 76
+1176  0
+1177  STO 77
+1178  0
+1179  STO 78
+1180  0
+1181  STO 79
+1182  0
+1183  STO 80
+1184  XEQ :ZNOW:    (23)
+1185  RCL 90
+1186  X=0?
+1187  RTN
+1188  299593
+1189  29
+1190  106
+1191  20
+1192  XEQ :PC:    (27)
+1193  37449
+1194  1
+1195  106
+1196  107
+1197  XEQ :PC:    (27)
+1198  266753
+1199  1
+1200  106
+1201  110
+1202  XEQ :PC:    (27)
+1203  262144
+1204  1
+1205  106
+1206  113
+1207  XEQ :PC:    (27)
+1208  262144
+1209  1
+1210  106
+1211  131
+1212  XEQ :PC:    (27)
+1213  32768
+1214  3
+1215  106
+1216  134
+1217  XEQ :PC:    (27)
+1218  37376
+1219  2
+1220  106
+1221  143
+1222  XEQ :PC:    (27)
+1223  37440
+1224  3
+1225  106
+1226  149
+1227  XEQ :PC:    (27)
+1228  37449
+1229  5
+1230  106
+1231  158
+1232  XEQ :PC:    (27)
+1233  78536544841
+1234  1
+1235  106
+1236  173
+1237  XEQ :PC:    (27)
+1238  68719514185
+1239  1
+1240  106
+1241  176
+1242  XEQ :PC:    (27)
+1243  4681
+1244  1
+1245  106
+1246  179
+1247  XEQ :PC:    (27)
+1248  585
+1249  3
+1250  106
+1251  182
+1252  XEQ :PC:    (27)
+1253  4681
+1254  2
+1255  106
+1256  191
+1257  XEQ :PC:    (27)
+1258  585
+1259  1
+1260  106
+1261  197
+1262  XEQ :PC:    (27)
+1263  9
+1264  1
+1265  106
+1266  200
+1267  XEQ :PC:    (27)
+1268  1
+1269  1
+1270  106
+1271  203
+1272  XEQ :PC:    (27)
+1273  134217728
+1274  1
+1275  106
+1276  230
+1277  XEQ :PC:    (27)
+1278  9
+1279  1
+1280  106
+1281  233
+1282  XEQ :PC:    (27)
+1283  73
+1284  1
+1285  106
+1286  236
+1287  XEQ :PC:    (27)
+1288  585
+1289  1
+1290  106
+1291  239
+1292  XEQ :PC:    (27)
+1293  37449
+1294  1
+1295  106
+1296  242
+1297  XEQ :PC:    (27)
+1298  8589972041
+1299  1
+1300  106
+1301  245
+1302  XEQ :PC:    (27)
+1303  37449
+1304  5
+1305  106
+1306  248
+1307  XEQ :PC:    (27)
+1308  299593
+1309  2
+1310  106
+1311  263
+1312  XEQ :PC:    (27)
+1313  37449
+1314  1
+1315  106
+1316  269
+1317  XEQ :PC:    (27)
+1318  4681
+1319  1
+1320  106
+1321  272
+1322  XEQ :PC:    (27)
+1323  37449
+1324  4
+1325  106
+1326  275
+1327  XEQ :PC:    (27)
+1328  33353
+1329  1
+1330  106
+1331  287
+1332  XEQ :PC:    (27)
+1333  73
+1334  1
+1335  106
+1336  290
+1337  XEQ :PC:    (27)
+1338  294913
+1339  1
+1340  106
+1341  293
+1342  XEQ :PC:    (27)
+1343  37377
+1344  1
+1345  106
+1346  296
+1347  XEQ :PC:    (27)
+1348  37448
+1349  1
+1350  106
+1351  299
+1352  XEQ :PC:    (27)
+1353  36872
+1354  1
+1355  106
+1356  302
+1357  XEQ :PC:    (27)
+1358  32776
+1359  1
+1360  106
+1361  305
+1362  XEQ :PC:    (27)
+1363  32777
+1364  1
+1365  106
+1366  308
+1367  XEQ :PC:    (27)
+1368  37377
+1369  1
+1370  106
+1371  311
+1372  XEQ :PC:    (27)
+1373  4673
+1374  1
+1375  106
+1376  314
+1377  XEQ :PC:    (27)
+1378  4681
+1379  1
+1380  106
+1381  317
+1382  XEQ :PC:    (27)
+1383  37449
+1384  1
+1385  106
+1386  320
+1387  XEQ :PC:    (27)
+1388  37385
+1389  1
+1390  106
+1391  323
+1392  XEQ :PC:    (27)
+1393  37377
+1394  1
+1395  106
+1396  326
+1397  XEQ :PC:    (27)
+1398  37376
+1399  1
+1400  106
+1401  329
+1402  XEQ :PC:    (27)
+1403  37440
+1404  2
+1405  106
+1406  332
+1407  XEQ :PC:    (27)
+1408  299592
+1409  1
+1410  106
+1411  338
+1412  XEQ :PC:    (27)
+1413  299593
+1414  13
+1415  106
+1416  341
+1417  XEQ :PC:    (27)
+1418  4398046511104
+1419  12
+1420  61
+1421  20
+1422  XEQ :PC:    (27)
+1423  4947802324992
+1424  4
+1425  61
+1426  56
+1427  XEQ :PC:    (27)
+1428  5016521801728
+1429  5
+1430  61
+1431  68
+1432  XEQ :PC:    (27)
+1433  5025111736320
+1434  5
+1435  61
+1436  83
+1437  XEQ :PC:    (27)
+1438  5026185478144
+1439  5
+1440  61
+1441  98
+1442  XEQ :PC:    (27)
+1443  628138967040
+1444  1
+1445  61
+1446  113
+1447  XEQ :PC:    (27)
+1448  78517370880
+1449  1
+1450  61
+1451  116
+1452  XEQ :PC:    (27)
+1453  9797894144
+1454  1
+1455  61
+1456  119
+1457  XEQ :PC:    (27)
+1458  9663676416
+1459  1
+1460  61
+1461  152
+1462  XEQ :PC:    (27)
+1463  628138967040
+1464  1
+1465  61
+1466  155
+1467  XEQ :PC:    (27)
+1468  5026185478144
+1469  15
+1470  61
+1471  158
+1472  XEQ :PC:    (27)
+1473  4399120252928
+1474  1
+1475  61
+1476  203
+1477  XEQ :PC:    (27)
+1478  8589934592
+1479  1
+1480  61
+1481  230
+1482  XEQ :PC:    (27)
+1483  5025111736320
+1484  1
+1485  61
+1486  233
+1487  XEQ :PC:    (27)
+1488  4398046511104
+1489  2
+1490  61
+1491  236
+1492  XEQ :PC:    (27)
+1493  4398046511104
+1494  14
+1495  61
+1496  296
+1497  XEQ :PC:    (27)
+1498  4466765987840
+1499  1
+1500  61
+1501  338
+1502  XEQ :PC:    (27)
+1503  8589934592
+1504  1
+1505  61
+1506  341
+1507  XEQ :PC:    (27)
+1508  4398046511104
+1509  12
+1510  61
+1511  344
+1512  XEQ :PC:    (27)
+1513  RTN
+1514  LBL 02
+1515  "N Atlantic, seasonal tropical"
+1516  STO 72
+1517  "Tropical 1 Nov-15 Jul, else Summer"
+1518  STO 73
+1519  0
+1520  STO 74
+1521  1101
+1522  STO 75
+1523  715
+1524  STO 76
+1525  1
+1526  STO 77
+1527  0
+1528  STO 78
+1529  0
+1530  STO 79
+1531  0
+1532  STO 80
+1533  XEQ :ZNOW:    (23)
+1534  RCL 90
+1535  X=0?
+1536  RTN
+1537  150994944
+1538  1
+1539  106
+1540  107
+1541  XEQ :PC:    (27)
+1542  153092096
+1543  1
+1544  106
+1545  110
+1546  XEQ :PC:    (27)
+1547  18874368
+1548  1
+1549  106
+1550  113
+1551  XEQ :PC:    (27)
+1552  153092096
+1553  1
+1554  106
+1555  116
+1556  XEQ :PC:    (27)
+1557  18874368
+1558  2
+1559  106
+1560  119
+1561  XEQ :PC:    (27)
+1562  153092096
+1563  3
+1564  106
+1565  125
+1566  XEQ :PC:    (27)
+1567  153354240
+1568  13
+1569  106
+1570  134
+1571  XEQ :PC:    (27)
+1572  RTN
+1573  LBL 03
+1574  "Arabian Sea, seasonal tropical"
+1575  STO 72
+1576  "Tropical 1 Sep-31 May, else Summer"
+1577  STO 73
+1578  0
+1579  STO 74
+1580  901
+1581  STO 75
+1582  531
+1583  STO 76
+1584  1
+1585  STO 77
+1586  0
+1587  STO 78
+1588  0
+1589  STO 79
+1590  0
+1591  STO 80
+1592  XEQ :ZNOW:    (23)
+1593  RCL 90
+1594  X=0?
+1595  RTN
+1596  2097152
+1597  1
+1598  106
+1599  242
+1600  XEQ :PC:    (27)
+1601  2359296
+1602  1
+1603  106
+1604  245
+1605  XEQ :PC:    (27)
+1606  19136512
+1607  1
+1608  106
+1609  248
+1610  XEQ :PC:    (27)
+1611  153354240
+1612  1
+1613  106
+1614  251
+1615  XEQ :PC:    (27)
+1616  1227096064
+1617  2
+1618  106
+1619  254
+1620  XEQ :PC:    (27)
+1621  153354240
+1622  1
+1623  106
+1624  260
+1625  XEQ :PC:    (27)
+1626  18874368
+1627  1
+1628  106
+1629  263
+1630  XEQ :PC:    (27)
+1631  RTN
+1632  LBL 04
+1633  "Bay of Bengal, seasonal tropical"
+1634  STO 72
+1635  "Tropical 1 Dec-30 Apr, else Summer"
+1636  STO 73
+1637  0
+1638  STO 74
+1639  1201
+1640  STO 75
+1641  430
+1642  STO 76
+1643  1
+1644  STO 77
+1645  0
+1646  STO 78
+1647  0
+1648  STO 79
+1649  0
+1650  STO 80
+1651  XEQ :ZNOW:    (23)
+1652  RCL 90
+1653  X=0?
+1654  RTN
+1655  2359296
+1656  1
+1657  106
+1658  272
+1659  XEQ :PC:    (27)
+1660  19136512
+1661  1
+1662  106
+1663  275
+1664  XEQ :PC:    (27)
+1665  153354240
+1666  2
+1667  106
+1668  278
+1669  XEQ :PC:    (27)
+1670  19136512
+1671  1
+1672  106
+1673  284
+1674  XEQ :PC:    (27)
+1675  2359296
+1676  1
+1677  106
+1678  287
+1679  XEQ :PC:    (27)
+1680  RTN
+1681  LBL 05
+1682  "China Sea, seasonal tropical"
+1683  STO 72
+1684  "Tropical 21 Jan-30 Apr, else Summer"
+1685  STO 73
+1686  0
+1687  STO 74
+1688  121
+1689  STO 75
+1690  430
+1691  STO 76
+1692  1
+1693  STO 77
+1694  0
+1695  STO 78
+1696  0
+1697  STO 79
+1698  0
+1699  STO 80
+1700  XEQ :ZNOW:    (23)
+1701  RCL 90
+1702  X=0?
+1703  RTN
+1704  134217728
+1705  1
+1706  106
+1707  299
+1708  XEQ :PC:    (27)
+1709  153354240
+1710  2
+1711  106
+1712  302
+1713  XEQ :PC:    (27)
+1714  19136512
+1715  1
+1716  106
+1717  308
+1718  XEQ :PC:    (27)
+1719  262144
+1720  1
+1721  106
+1722  311
+1723  XEQ :PC:    (27)
+1724  RTN
+1725  LBL 06
+1726  "N Pacific W, seasonal tropical"
+1727  STO 72
+1728  "Tropical 1 Apr-31 Oct, else Summer"
+1729  STO 73
+1730  0
+1731  STO 74
+1732  401
+1733  STO 75
+1734  1031
+1735  STO 76
+1736  1
+1737  STO 77
+1738  0
+1739  STO 78
+1740  0
+1741  STO 79
+1742  0
+1743  STO 80
+1744  XEQ :ZNOW:    (23)
+1745  RCL 90
+1746  X=0?
+1747  RTN
+1748  1226833920
+1749  14
+1750  106
+1751  20
+1752  XEQ :PC:    (27)
+1753  1226833920
+1754  9
+1755  106
+1756  353
+1757  XEQ :PC:    (27)
+1758  RTN
+1759  LBL 07
+1760  "N Pacific E, seasonal tropical"
+1761  STO 72
+1762  "Tropical 1 Mar-30 Jun, 1 Nov-30 Nov, else Summer"
+1763  STO 73
+1764  0
+1765  STO 74
+1766  301
+1767  STO 75
+1768  630
+1769  STO 76
+1770  1
+1771  STO 77
+1772  1101
+1773  STO 78
+1774  1130
+1775  STO 79
+1776  1
+1777  STO 80
+1778  XEQ :ZNOW:    (23)
+1779  RCL 90
+1780  X=0?
+1781  RTN
+1782  4398046511104
+1783  1
+1784  106
+1785  68
+1786  XEQ :PC:    (27)
+1787  549755813888
+1788  1
+1789  106
+1790  71
+1791  XEQ :PC:    (27)
+1792  68719476736
+1793  1
+1794  106
+1795  74
+1796  XEQ :PC:    (27)
+1797  8589934592
+1798  1
+1799  106
+1800  77
+1801  XEQ :PC:    (27)
+1802  1073741824
+1803  1
+1804  106
+1805  80
+1806  XEQ :PC:    (27)
+1807  1207959552
+1808  1
+1809  106
+1810  83
+1811  XEQ :PC:    (27)
+1812  18874368
+1813  2
+1814  106
+1815  86
+1816  XEQ :PC:    (27)
+1817  2097152
+1818  1
+1819  106
+1820  92
+1821  XEQ :PC:    (27)
+1822  9665773568
+1823  1
+1824  106
+1825  95
+1826  XEQ :PC:    (27)
+1827  78519468032
+1828  1
+1829  106
+1830  98
+1831  XEQ :PC:    (27)
+1832  78383153152
+1833  1
+1834  106
+1835  101
+1836  XEQ :PC:    (27)
+1837  RTN
+1838  LBL 08
+1839  "S Indian W, seasonal tropical"
+1840  STO 72
+1841  "Tropical 1 Apr-30 Nov, else Summer"
+1842  STO 73
+1843  0
+1844  STO 74
+1845  401
+1846  STO 75
+1847  1130
+1848  STO 76
+1849  1
+1850  STO 77
+1851  0
+1852  STO 78
+1853  0
+1854  STO 79
+1855  0
+1856  STO 80
+1857  XEQ :ZNOW:    (23)
+1858  RCL 90
+1859  X=0?
+1860  RTN
+1861  549755813888
+1862  1
+1863  61
+1864  236
+1865  XEQ :PC:    (27)
+1866  5016521801728
+1867  1
+1868  61
+1869  242
+1870  XEQ :PC:    (27)
+1871  RTN
+1872  LBL 09
+1873  "S Indian E, seasonal tropical"
+1874  STO 72
+1875  "Tropical 1 May-30 Nov, else Summer"
+1876  STO 73
+1877  0
+1878  STO 74
+1879  501
+1880  STO 75
+1881  1130
+1882  STO 76
+1883  1
+1884  STO 77
+1885  0
+1886  STO 78
+1887  0
+1888  STO 79
+1889  0
+1890  STO 80
+1891  XEQ :ZNOW:    (23)
+1892  RCL 90
+1893  X=0?
+1894  RTN
+1895  4947802324992
+1896  17
+1897  61
+1898  245
+1899  XEQ :PC:    (27)
+1900  549755813888
+1901  9
+1902  61
+1903  296
+1904  XEQ :PC:    (27)
+1905  RTN
+1906  LBL 10
+1907  "Carpentaria, seasonal tropical"
+1908  STO 72
+1909  "Tropical 1 Apr-30 Nov, else Summer"
+1910  STO 73
+1911  0
+1912  STO 74
+1913  401
+1914  STO 75
+1915  1130
+1916  STO 76
+1917  1
+1918  STO 77
+1919  0
+1920  STO 78
+1921  0
+1922  STO 79
+1923  0
+1924  STO 80
+1925  XEQ :ZNOW:    (23)
+1926  RCL 90
+1927  X=0?
+1928  RTN
+1929  549755813888
+1930  1
+1931  61
+1932  329
+1933  XEQ :PC:    (27)
+1934  RTN
+1935  LBL 11
+1936  "S Pacific, seasonal tropical"
+1937  STO 72
+1938  "Tropical 1 Apr-30 Nov, else Summer"
+1939  STO 73
+1940  0
+1941  STO 74
+1942  401
+1943  STO 75
+1944  1130
+1945  STO 76
+1946  1
+1947  STO 77
+1948  0
+1949  STO 78
+1950  0
+1951  STO 79
+1952  0
+1953  STO 80
+1954  XEQ :ZNOW:    (23)
+1955  RCL 90
+1956  X=0?
+1957  RTN
+1958  628138967040
+1959  8
+1960  61
+1961  20
+1962  XEQ :PC:    (27)
+1963  627065225216
+1964  4
+1965  61
+1966  44
+1967  XEQ :PC:    (27)
+1968  77309411328
+1969  4
+1970  61
+1971  56
+1972  XEQ :PC:    (27)
+1973  8589934592
+1974  5
+1975  61
+1976  68
+1977  XEQ :PC:    (27)
+1978  549755813888
+1979  1
+1980  61
+1981  338
+1982  XEQ :PC:    (27)
+1983  618475290624
+1984  1
+1985  61
+1986  341
+1987  XEQ :PC:    (27)
+1988  628138967040
+1989  12
+1990  61
+1991  344
+1992  XEQ :PC:    (27)
+1993  RTN
+1994  LBL 12
+1995  "N Atlantic winter zone I"
+1996  STO 72
+1997  "Winter 16 Oct-15 Apr, else Summer"
+1998  STO 73
+1999  0
+2000  STO 74
+2001  1016
+2002  STO 75
+2003  415
+2004  STO 76
+2005  2
+2006  STO 77
+2007  0
+2008  STO 78
+2009  0
+2010  STO 79
+2011  0
+2012  STO 80
+2013  XEQ :ZNOW:    (23)
+2014  RCL 90
+2015  X=0?
+2016  RTN
+2017  2396672
+2018  3
+2019  151
+2020  143
+2021  XEQ :PC:    (27)
+2022  153391616
+2023  3
+2024  151
+2025  152
+2026  XEQ :PC:    (27)
+2027  1227133440
+2028  3
+2029  151
+2030  161
+2031  XEQ :PC:    (27)
+2032  9682850304
+2033  1
+2034  151
+2035  170
+2036  XEQ :PC:    (27)
+2037  628158140928
+2038  1
+2039  151
+2040  173
+2041  XEQ :PC:    (27)
+2042  5026204652032
+2043  1
+2044  151
+2045  176
+2046  XEQ :PC:    (27)
+2047  5026336473088
+2048  5
+2049  151
+2050  179
+2051  XEQ :PC:    (27)
+2052  RTN
+2053  LBL 13
+2054  "N Atlantic winter zone II"
+2055  STO 72
+2056  "Winter 1 Nov-31 Mar, else Summer"
+2057  STO 73
+2058  0
+2059  STO 74
+2060  1101
+2061  STO 75
+2062  331
+2063  STO 76
+2064  2
+2065  STO 77
+2066  0
+2067  STO 78
+2068  0
+2069  STO 79
+2070  0
+2071  STO 80
+2072  XEQ :ZNOW:    (23)
+2073  RCL 90
+2074  X=0?
+2075  RTN
+2076  618475290624
+2077  2
+2078  151
+2079  116
+2080  XEQ :PC:    (27)
+2081  68719476736
+2082  1
+2083  151
+2084  122
+2085  XEQ :PC:    (27)
+2086  77326188617
+2087  1
+2088  151
+2089  125
+2090  XEQ :PC:    (27)
+2091  77460406345
+2092  1
+2093  151
+2094  128
+2095  XEQ :PC:    (27)
+2096  78536245321
+2097  1
+2098  151
+2099  131
+2100  XEQ :PC:    (27)
+2101  78536507977
+2102  1
+2103  151
+2104  134
+2105  XEQ :PC:    (27)
+2106  1227128905
+2107  1
+2108  151
+2109  137
+2110  XEQ :PC:    (27)
+2111  19173961
+2112  1
+2113  151
+2114  140
+2115  XEQ :PC:    (27)
+2116  73
+2117  9
+2118  151
+2119  143
+2120  XEQ :PC:    (27)
+2121  72
+2122  2
+2123  151
+2124  170
+2125  XEQ :PC:    (27)
+2126  64
+2127  1
+2128  151
+2129  176
+2130  XEQ :PC:    (27)
+2131  2396736
+2132  1
+2133  151
+2134  179
+2135  XEQ :PC:    (27)
+2136  2363968
+2137  1
+2138  151
+2139  182
+2140  XEQ :PC:    (27)
+2141  4608
+2142  1
+2143  151
+2144  185
+2145  XEQ :PC:    (27)
+2146  2097664
+2147  1
+2148  151
+2149  188
+2150  XEQ :PC:    (27)
+2151  2359296
+2152  1
+2153  151
+2154  191
+2155  XEQ :PC:    (27)
+2156  5026338865152
+2157  1
+2158  151
+2159  194
+2160  XEQ :PC:    (27)
+2161  5026319958016
+2162  1
+2163  151
+2164  197
+2165  XEQ :PC:    (27)
+2166  5026319695872
+2167  1
+2168  151
+2169  200
+2170  XEQ :PC:    (27)
+2171  628138967040
+2172  1
+2173  151
+2174  203
+2175  XEQ :PC:    (27)
+2176  627065225216
+2177  2
+2178  151
+2179  206
+2180  XEQ :PC:    (27)
+2181  618475290624
+2182  2
+2183  151
+2184  212
+2185  XEQ :PC:    (27)
+2186  5016521801728
+2187  2
+2188  151
+2189  218
+2190  XEQ :PC:    (27)
+2191  5025111736320
+2192  3
+2193  151
+2194  224
+2195  XEQ :PC:    (27)
+2196  5026185478144
+2197  1
+2198  151
+2199  233
+2200  XEQ :PC:    (27)
+2201  5025111736320
+2202  1
+2203  151
+2204  236
+2205  XEQ :PC:    (27)
+2206  RTN
+2207  LBL 14
+2208  "N Atlantic winter area"
+2209  STO 72
+2210  "Winter 16 Dec-15 Feb, else Summer"
+2211  STO 73
+2212  0
+2213  STO 74
+2214  1216
+2215  STO 75
+2216  215
+2217  STO 76
+2218  2
+2219  STO 77
+2220  0
+2221  STO 78
+2222  0
+2223  STO 79
+2224  0
+2225  STO 80
+2226  XEQ :ZNOW:    (23)
+2227  RCL 90
+2228  X=0?
+2229  RTN
+2230  8
+2231  2
+2232  151
+2233  119
+2234  XEQ :PC:    (27)
+2235  RTN
+2236  LBL 15
+2237  "N Pacific winter zone"
+2238  STO 72
+2239  "Winter 16 Oct-15 Apr, else Summer"
+2240  STO 73
+2241  0
+2242  STO 74
+2243  1016
+2244  STO 75
+2245  415
+2246  STO 76
+2247  2
+2248  STO 77
+2249  0
+2250  STO 78
+2251  0
+2252  STO 79
+2253  0
+2254  STO 80
+2255  XEQ :ZNOW:    (23)
+2256  RCL 90
+2257  X=0?
+2258  RTN
+2259  5026338869833
+2260  2
+2261  151
+2262  20
+2263  XEQ :PC:    (27)
+2264  5025114133065
+2265  1
+2266  151
+2267  26
+2268  XEQ :PC:    (27)
+2269  5016524198473
+2270  1
+2271  151
+2272  29
+2273  XEQ :PC:    (27)
+2274  5016522101321
+2275  3
+2276  151
+2277  32
+2278  XEQ :PC:    (27)
+2279  5016524198473
+2280  1
+2281  151
+2282  41
+2283  XEQ :PC:    (27)
+2284  5016524198472
+2285  1
+2286  151
+2287  44
+2288  XEQ :PC:    (27)
+2289  5016524198464
+2290  1
+2291  151
+2292  47
+2293  XEQ :PC:    (27)
+2294  5025114132992
+2295  1
+2296  151
+2297  50
+2298  XEQ :PC:    (27)
+2299  5025112035328
+2300  1
+2301  151
+2302  53
+2303  XEQ :PC:    (27)
+2304  5025112031232
+2305  1
+2306  151
+2307  56
+2308  XEQ :PC:    (27)
+2309  5016521801728
+2310  2
+2311  151
+2312  323
+2313  XEQ :PC:    (27)
+2314  4466765987840
+2315  1
+2316  151
+2317  329
+2318  XEQ :PC:    (27)
+2319  4398046773248
+2320  1
+2321  151
+2322  332
+2323  XEQ :PC:    (27)
+2324  4398048903680
+2325  1
+2326  151
+2327  335
+2328  XEQ :PC:    (27)
+2329  5016524198473
+2330  2
+2331  151
+2332  338
+2333  XEQ :PC:    (27)
+2334  5016522101321
+2335  1
+2336  151
+2337  344
+2338  XEQ :PC:    (27)
+2339  5016523903561
+2340  1
+2341  151
+2342  347
+2343  XEQ :PC:    (27)
+2344  5016521806409
+2345  1
+2346  151
+2347  350
+2348  XEQ :PC:    (27)
+2349  5025111773769
+2350  1
+2351  151
+2352  353
+2353  XEQ :PC:    (27)
+2354  5025114133065
+2355  3
+2356  151
+2357  356
+2358  XEQ :PC:    (27)
+2359  5016524198473
+2360  1
+2361  151
+2362  365
+2363  XEQ :PC:    (27)
+2364  5025130910281
+2365  2
+2366  151
+2367  368
+2368  XEQ :PC:    (27)
+2369  5025265128009
+2370  1
+2371  151
+2372  374
+2373  XEQ :PC:    (27)
+2374  5025130910281
+2375  1
+2376  151
+2377  377
+2378  XEQ :PC:    (27)
+2379  RTN
+2380  LBL 16
+2381  "Southern winter zone"
+2382  STO 72
+2383  "Winter 16 Apr-15 Oct, else Summer"
+2384  STO 73
+2385  0
+2386  STO 74
+2387  416
+2388  STO 75
+2389  1015
+2390  STO 76
+2391  2
+2392  STO 77
+2393  0
+2394  STO 78
+2395  0
+2396  STO 79
+2397  0
+2398  STO 80
+2399  XEQ :ZNOW:    (23)
+2400  RCL 90
+2401  X=0?
+2402  RTN
+2403  299593
+2404  31
+2405  61
+2406  20
+2407  XEQ :PC:    (27)
+2408  37449
+2409  1
+2410  61
+2411  113
+2412  XEQ :PC:    (27)
+2413  513
+2414  1
+2415  61
+2416  116
+2417  XEQ :PC:    (27)
+2418  73
+2419  2
+2420  61
+2421  125
+2422  XEQ :PC:    (27)
+2423  585
+2424  1
+2425  61
+2426  131
+2427  XEQ :PC:    (27)
+2428  4681
+2429  2
+2430  61
+2431  134
+2432  XEQ :PC:    (27)
+2433  37449
+2434  1
+2435  61
+2436  140
+2437  XEQ :PC:    (27)
+2438  299593
+2439  22
+2440  61
+2441  143
+2442  XEQ :PC:    (27)
+2443  37449
+2444  4
+2445  61
+2446  209
+2447  XEQ :PC:    (27)
+2448  299593
+2449  10
+2450  61
+2451  221
+2452  XEQ :PC:    (27)
+2453  37449
+2454  23
+2455  61
+2456  251
+2457  XEQ :PC:    (27)
+2458  4681
+2459  5
+2460  61
+2461  320
+2462  XEQ :PC:    (27)
+2463  585
+2464  1
+2465  61
+2466  335
+2467  XEQ :PC:    (27)
+2468  73
+2469  6
+2470  61
+2471  338
+2472  XEQ :PC:    (27)
+2473  9
+2474  2
+2475  61
+2476  356
+2477  XEQ :PC:    (27)
+2478  73
+2479  2
+2480  61
+2481  362
+2482  XEQ :PC:    (27)
+2483  585
+2484  1
+2485  61
+2486  368
+2487  XEQ :PC:    (27)
+2488  4681
+2489  2
+2490  61
+2491  371
+2492  XEQ :PC:    (27)
+2493  37449
+2494  1
+2495  61
+2496  377
+2497  XEQ :PC:    (27)
+2498  RTN
+2499  LBL 50
+2500  1215
+2501  XEQ :RUN:    (32)
+2502  3100
+2503  XEQ :RUN:    (32)
+2504  4013
+2505  XEQ :RUN:    (32)
+2506  5712
+2507  XEQ :RUN:    (32)
+2508  7213
+2509  XEQ :RUN:    (32)
+2510  10000
+2511  XEQ :RUN:    (32)
+2512  11915
+2513  XEQ :RUN:    (32)
+2514  RTN
+2515  LBL 51
+2516  1215
+2517  XEQ :RUN:    (32)
+2518  3100
+2519  XEQ :RUN:    (32)
+2520  4013
+2521  XEQ :RUN:    (32)
+2522  5712
+2523  XEQ :RUN:    (32)
+2524  7213
+2525  XEQ :RUN:    (32)
+2526  10000
+2527  XEQ :RUN:    (32)
+2528  11915
+2529  XEQ :RUN:    (32)
+2530  RTN
+2531  LBL 52
+2532  1215
+2533  XEQ :RUN:    (32)
+2534  3100
+2535  XEQ :RUN:    (32)
+2536  4013
+2537  XEQ :RUN:    (32)
+2538  5712
+2539  XEQ :RUN:    (32)
+2540  7213
+2541  XEQ :RUN:    (32)
+2542  10000
+2543  XEQ :RUN:    (32)
+2544  11915
+2545  XEQ :RUN:    (32)
+2546  RTN
+2547  LBL 53
+2548  1215
+2549  XEQ :RUN:    (32)
+2550  3100
+2551  XEQ :RUN:    (32)
+2552  4013
+2553  XEQ :RUN:    (32)
+2554  5712
+2555  XEQ :RUN:    (32)
+2556  7213
+2557  XEQ :RUN:    (32)
+2558  10000
+2559  XEQ :RUN:    (32)
+2560  11915
+2561  XEQ :RUN:    (32)
+2562  RTN
+2563  LBL 54
+2564  1215
+2565  XEQ :RUN:    (32)
+2566  3100
+2567  XEQ :RUN:    (32)
+2568  4013
+2569  XEQ :RUN:    (32)
+2570  5712
+2571  XEQ :RUN:    (32)
+2572  7213
+2573  XEQ :RUN:    (32)
+2574  10000
+2575  XEQ :RUN:    (32)
+2576  11915
+2577  XEQ :RUN:    (32)
+2578  RTN
+2579  LBL 55
+2580  1215
+2581  XEQ :RUN:    (32)
+2582  3100
+2583  XEQ :RUN:    (32)
+2584  4013
+2585  XEQ :RUN:    (32)
+2586  5712
+2587  XEQ :RUN:    (32)
+2588  6013
+2589  XEQ :RUN:    (32)
+2590  6700
+2591  XEQ :RUN:    (32)
+2592  7213
+2593  XEQ :RUN:    (32)
+2594  10000
+2595  XEQ :RUN:    (32)
+2596  11915
+2597  XEQ :RUN:    (32)
+2598  RTN
+2599  LBL 56
+2600  1215
+2601  XEQ :RUN:    (32)
+2602  3100
+2603  XEQ :RUN:    (32)
+2604  4013
+2605  XEQ :RUN:    (32)
+2606  5712
+2607  XEQ :RUN:    (32)
+2608  6013
+2609  XEQ :RUN:    (32)
+2610  6700
+2611  XEQ :RUN:    (32)
+2612  7213
+2613  XEQ :RUN:    (32)
+2614  10000
+2615  XEQ :RUN:    (32)
+2616  11915
+2617  XEQ :RUN:    (32)
+2618  RTN
+2619  LBL 57
+2620  1215
+2621  XEQ :RUN:    (32)
+2622  3100
+2623  XEQ :RUN:    (32)
+2624  4013
+2625  XEQ :RUN:    (32)
+2626  5212
+2627  XEQ :RUN:    (32)
+2628  6013
+2629  XEQ :RUN:    (32)
+2630  6700
+2631  XEQ :RUN:    (32)
+2632  7213
+2633  XEQ :RUN:    (32)
+2634  10000
+2635  XEQ :RUN:    (32)
+2636  11915
+2637  XEQ :RUN:    (32)
+2638  RTN
+2639  LBL 58
+2640  1215
+2641  XEQ :RUN:    (32)
+2642  3100
+2643  XEQ :RUN:    (32)
+2644  4013
+2645  XEQ :RUN:    (32)
+2646  5212
+2647  XEQ :RUN:    (32)
+2648  6013
+2649  XEQ :RUN:    (32)
+2650  6700
+2651  XEQ :RUN:    (32)
+2652  7213
+2653  XEQ :RUN:    (32)
+2654  10000
+2655  XEQ :RUN:    (32)
+2656  11915
+2657  XEQ :RUN:    (32)
+2658  RTN
+2659  LBL 59
+2660  1215
+2661  XEQ :RUN:    (32)
+2662  3100
+2663  XEQ :RUN:    (32)
+2664  4013
+2665  XEQ :RUN:    (32)
+2666  5212
+2667  XEQ :RUN:    (32)
+2668  6013
+2669  XEQ :RUN:    (32)
+2670  6700
+2671  XEQ :RUN:    (32)
+2672  7213
+2673  XEQ :RUN:    (32)
+2674  10000
+2675  XEQ :RUN:    (32)
+2676  11915
+2677  XEQ :RUN:    (32)
+2678  RTN
+2679  LBL 60
+2680  1115
+2681  XEQ :RUN:    (32)
+2682  3100
+2683  XEQ :RUN:    (32)
+2684  4013
+2685  XEQ :RUN:    (32)
+2686  5212
+2687  XEQ :RUN:    (32)
+2688  6013
+2689  XEQ :RUN:    (32)
+2690  6700
+2691  XEQ :RUN:    (32)
+2692  7213
+2693  XEQ :RUN:    (32)
+2694  10400
+2695  XEQ :RUN:    (32)
+2696  11915
+2697  XEQ :RUN:    (32)
+2698  RTN
+2699  LBL 61
+2700  1015
+2701  XEQ :RUN:    (32)
+2702  3100
+2703  XEQ :RUN:    (32)
+2704  4013
+2705  XEQ :RUN:    (32)
+2706  5212
+2707  XEQ :RUN:    (32)
+2708  6013
+2709  XEQ :RUN:    (32)
+2710  6700
+2711  XEQ :RUN:    (32)
+2712  7213
+2713  XEQ :RUN:    (32)
+2714  10400
+2715  XEQ :RUN:    (32)
+2716  11915
+2717  XEQ :RUN:    (32)
+2718  RTN
+2719  LBL 62
+2720  915
+2721  XEQ :RUN:    (32)
+2722  3100
+2723  XEQ :RUN:    (32)
+2724  3414
+2725  XEQ :RUN:    (32)
+2726  5513
+2727  XEQ :RUN:    (32)
+2728  10500
+2729  XEQ :RUN:    (32)
+2730  11915
+2731  XEQ :RUN:    (32)
+2732  RTN
+2733  LBL 63
+2734  815
+2735  XEQ :RUN:    (32)
+2736  3100
+2737  XEQ :RUN:    (32)
+2738  3414
+2739  XEQ :RUN:    (32)
+2740  5113
+2741  XEQ :RUN:    (32)
+2742  10500
+2743  XEQ :RUN:    (32)
+2744  11915
+2745  XEQ :RUN:    (32)
+2746  RTN
+2747  LBL 64
+2748  715
+2749  XEQ :RUN:    (32)
+2750  1500
+2751  XEQ :RUN:    (32)
+2752  2707
+2753  XEQ :RUN:    (32)
+2754  3400
+2755  XEQ :RUN:    (32)
+2756  4913
+2757  XEQ :RUN:    (32)
+2758  10500
+2759  XEQ :RUN:    (32)
+2760  11915
+2761  XEQ :RUN:    (32)
+2762  RTN
+2763  LBL 65
+2764  1500
+2765  XEQ :RUN:    (32)
+2766  2707
+2767  XEQ :RUN:    (32)
+2768  11900
+2769  XEQ :RUN:    (32)
+2770  RTN
+2771  LBL 66
+2772  1600
+2773  XEQ :RUN:    (32)
+2774  2707
+2775  XEQ :RUN:    (32)
+2776  6700
+2777  XEQ :RUN:    (32)
+2778  7101
+2779  XEQ :RUN:    (32)
+2780  11900
+2781  XEQ :RUN:    (32)
+2782  RTN
+2783  LBL 67
+2784  1700
+2785  XEQ :RUN:    (32)
+2786  2707
+2787  XEQ :RUN:    (32)
+2788  5000
+2789  XEQ :RUN:    (32)
+2790  7101
+2791  XEQ :RUN:    (32)
+2792  7200
+2793  XEQ :RUN:    (32)
+2794  7601
+2795  XEQ :RUN:    (32)
+2796  8303
+2797  XEQ :RUN:    (32)
+2798  11900
+2799  XEQ :RUN:    (32)
+2800  RTN
+2801  LBL 68
+2802  1800
+2803  XEQ :RUN:    (32)
+2804  2707
+2805  XEQ :RUN:    (32)
+2806  5000
+2807  XEQ :RUN:    (32)
+2808  7101
+2809  XEQ :RUN:    (32)
+2810  7200
+2811  XEQ :RUN:    (32)
+2812  7601
+2813  XEQ :RUN:    (32)
+2814  8303
+2815  XEQ :RUN:    (32)
+2816  11900
+2817  XEQ :RUN:    (32)
+2818  RTN
+2819  LBL 69
+2820  1306
+2821  XEQ :RUN:    (32)
+2822  1900
+2823  XEQ :RUN:    (32)
+2824  2707
+2825  XEQ :RUN:    (32)
+2826  5000
+2827  XEQ :RUN:    (32)
+2828  7101
+2829  XEQ :RUN:    (32)
+2830  7203
+2831  XEQ :RUN:    (32)
+2832  7601
+2833  XEQ :RUN:    (32)
+2834  8303
+2835  XEQ :RUN:    (32)
+2836  9004
+2837  XEQ :RUN:    (32)
+2838  9100
+2839  XEQ :RUN:    (32)
+2840  9405
+2841  XEQ :RUN:    (32)
+2842  11000
+2843  XEQ :RUN:    (32)
+2844  11906
+2845  XEQ :RUN:    (32)
+2846  RTN
+2847  LBL 70
+2848  1306
+2849  XEQ :RUN:    (32)
+2850  2000
+2851  XEQ :RUN:    (32)
+2852  2707
+2853  XEQ :RUN:    (32)
+2854  5002
+2855  XEQ :RUN:    (32)
+2856  7101
+2857  XEQ :RUN:    (32)
+2858  8303
+2859  XEQ :RUN:    (32)
+2860  9004
+2861  XEQ :RUN:    (32)
+2862  9100
+2863  XEQ :RUN:    (32)
+2864  9505
+2865  XEQ :RUN:    (32)
+2866  11000
+2867  XEQ :RUN:    (32)
+2868  11906
+2869  XEQ :RUN:    (32)
+2870  RTN
+2871  LBL 71
+2872  1306
+2873  XEQ :RUN:    (32)
+2874  2100
+2875  XEQ :RUN:    (32)
+2876  2707
+2877  XEQ :RUN:    (32)
+2878  5002
+2879  XEQ :RUN:    (32)
+2880  7101
+2881  XEQ :RUN:    (32)
+2882  8303
+2883  XEQ :RUN:    (32)
+2884  9004
+2885  XEQ :RUN:    (32)
+2886  9100
+2887  XEQ :RUN:    (32)
+2888  9605
+2889  XEQ :RUN:    (32)
+2890  11000
+2891  XEQ :RUN:    (32)
+2892  11906
+2893  XEQ :RUN:    (32)
+2894  RTN
+2895  LBL 72
+2896  1306
+2897  XEQ :RUN:    (32)
+2898  2100
+2899  XEQ :RUN:    (32)
+2900  2707
+2901  XEQ :RUN:    (32)
+2902  5002
+2903  XEQ :RUN:    (32)
+2904  7201
+2905  XEQ :RUN:    (32)
+2906  8303
+2907  XEQ :RUN:    (32)
+2908  8904
+2909  XEQ :RUN:    (32)
+2910  9201
+2911  XEQ :RUN:    (32)
+2912  9705
+2913  XEQ :RUN:    (32)
+2914  11000
+2915  XEQ :RUN:    (32)
+2916  11906
+2917  XEQ :RUN:    (32)
+2918  RTN
+2919  LBL 73
+2920  3701
+2921  XEQ :RUN:    (32)
+2922  5002
+2923  XEQ :RUN:    (32)
+2924  7101
+2925  XEQ :RUN:    (32)
+2926  8003
+2927  XEQ :RUN:    (32)
+2928  8201
+2929  XEQ :RUN:    (32)
+2930  8300
+2931  XEQ :RUN:    (32)
+2932  8904
+2933  XEQ :RUN:    (32)
+2934  9201
+2935  XEQ :RUN:    (32)
+2936  9705
+2937  XEQ :RUN:    (32)
+2938  10500
+2939  XEQ :RUN:    (32)
+2940  11901
+2941  XEQ :RUN:    (32)
+2942  RTN
+2943  LBL 74
+2944  11901
+2945  XEQ :RUN:    (32)
+2946  RTN
+2947  LBL 75
+2948  11901
+2949  XEQ :RUN:    (32)
+2950  RTN
+2951  LBL 76
+2952  11901
+2953  XEQ :RUN:    (32)
+2954  RTN
+2955  LBL 77
+2956  11901
+2957  XEQ :RUN:    (32)
+2958  RTN
+2959  LBL 78
+2960  11901
+2961  XEQ :RUN:    (32)
+2962  RTN
+2963  LBL 79
+2964  11901
+2965  XEQ :RUN:    (32)
+2966  RTN
+2967  LBL 80
+2968  7301
+2969  XEQ :RUN:    (32)
+2970  7408
+2971  XEQ :RUN:    (32)
+2972  9109
+2973  XEQ :RUN:    (32)
+2974  11901
+2975  XEQ :RUN:    (32)
+2976  RTN
+2977  LBL 81
+2978  1111
+2979  XEQ :RUN:    (32)
+2980  7101
+2981  XEQ :RUN:    (32)
+2982  7408
+2983  XEQ :RUN:    (32)
+2984  10209
+2985  XEQ :RUN:    (32)
+2986  10410
+2987  XEQ :RUN:    (32)
+2988  10501
+2989  XEQ :RUN:    (32)
+2990  11911
+2991  XEQ :RUN:    (32)
+2992  RTN
+2993  LBL 82
+2994  1511
+2995  XEQ :RUN:    (32)
+2996  7101
+2997  XEQ :RUN:    (32)
+2998  7408
+2999  XEQ :RUN:    (32)
+3000  9700
+3001  XEQ :RUN:    (32)
+3002  10209
+3003  XEQ :RUN:    (32)
+3004  10410
+3005  XEQ :RUN:    (32)
+3006  10601
+3007  XEQ :RUN:    (32)
+3008  11911
+3009  XEQ :RUN:    (32)
+3010  RTN
+3011  LBL 83
+3012  2011
+3013  XEQ :RUN:    (32)
+3014  7101
+3015  XEQ :RUN:    (32)
+3016  7308
+3017  XEQ :RUN:    (32)
+3018  9700
+3019  XEQ :RUN:    (32)
+3020  10209
+3021  XEQ :RUN:    (32)
+3022  10400
+3023  XEQ :RUN:    (32)
+3024  10701
+3025  XEQ :RUN:    (32)
+3026  11911
+3027  XEQ :RUN:    (32)
+3028  RTN
+3029  LBL 84
+3030  711
+3031  XEQ :RUN:    (32)
+3032  2500
+3033  XEQ :RUN:    (32)
+3034  6801
+3035  XEQ :RUN:    (32)
+3036  9700
+3037  XEQ :RUN:    (32)
+3038  10209
+3039  XEQ :RUN:    (32)
+3040  10400
+3041  XEQ :RUN:    (32)
+3042  11911
+3043  XEQ :RUN:    (32)
+3044  RTN
+3045  LBL 85
+3046  3100
+3047  XEQ :RUN:    (32)
+3048  3301
+3049  XEQ :RUN:    (32)
+3050  11900
+3051  XEQ :RUN:    (32)
+3052  RTN
+3053  LBL 86
+3054  3200
+3055  XEQ :RUN:    (32)
+3056  3301
+3057  XEQ :RUN:    (32)
+3058  11900
+3059  XEQ :RUN:    (32)
+3060  RTN
+3061  LBL 87
+3062  11900
+3063  XEQ :RUN:    (32)
+3064  RTN
+3065  LBL 88
+3066  3016
+3067  XEQ :RUN:    (32)
+3068  4000
+3069  XEQ :RUN:    (32)
+3070  6216
+3071  XEQ :RUN:    (32)
+3072  6600
+3073  XEQ :RUN:    (32)
+3074  7616
+3075  XEQ :RUN:    (32)
+3076  11900
+3077  XEQ :RUN:    (32)
+3078  RTN
+3079  LBL 89
+3080  3116
+3081  XEQ :RUN:    (32)
+3082  3900
+3083  XEQ :RUN:    (32)
+3084  9916
+3085  XEQ :RUN:    (32)
+3086  11800
+3087  XEQ :RUN:    (32)
+3088  11916
+3089  XEQ :RUN:    (32)
+3090  RTN
+3091  LBL 90
+3092  3116
+3093  XEQ :RUN:    (32)
+3094  3700
+3095  XEQ :RUN:    (32)
+3096  10416
+3097  XEQ :RUN:    (32)
+3098  11600
+3099  XEQ :RUN:    (32)
+3100  11916
+3101  XEQ :RUN:    (32)
+3102  RTN
+3103  LBL 91
+3104  3516
+3105  XEQ :RUN:    (32)
+3106  3600
+3107  XEQ :RUN:    (32)
+3108  10616
+3109  XEQ :RUN:    (32)
+3110  11500
+3111  XEQ :RUN:    (32)
+3112  11916
+3113  XEQ :RUN:    (32)
+3114  RTN
+3115  LBL 92
+3116  11116
+3117  XEQ :RUN:    (32)
+3118  11300
+3119  XEQ :RUN:    (32)
+3120  11916
+3121  XEQ :RUN:    (32)
+3122  RTN
+3123  LBL 93
+3124  11916
+3125  XEQ :RUN:    (32)
+3126  RTN
+3127  LBL 94
+3128  11916
+3129  XEQ :RUN:    (32)
+3130  RTN
+3131  END

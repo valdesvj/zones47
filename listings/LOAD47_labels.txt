@@ -1,0 +1,36 @@
+LOAD47 local labels: name (programs_rem/LOAD47.txt), number (build/LOAD47.txt), what it does
+
+:MOVE:     00  the cursor off, one cell (rows 0-44, columns 0-119, around), the cursor on, the texts
+:BACK:     17  , LBL :FWD:, LBL :TODAY: the date - 15, + 15 days, the clock's; then only the areas whose
+:FWD:      18  
+:TODAY:    19  
+:NEWDAY:   20  
+:DATE:     21  R30 = the JD (noon) of the clock's date + R31 days; R39 = MMDD (LBL :CAL:)
+:AREAS:    22  every area (LBL 01-nn, R38) run in mode 0: each one whose zone changed drawn again, in
+:ZNOW:     23  R40 = the zone of the area on the date R39: R74, or the zone of the season the date is
+:SEASON:   24  Z start, Y end, X zone: R40 = X when the date R39 is in the season (start 0: none)
+:INC:      25  
+:NEED1:    26  
+:PC:       27  a piece of the area R38: T = L (the lower rows of its sea cells; the upper rows 2L), Z = n
+:PUP:      28  the upper rows, LBL :PLO: the lower rows (x + 1): LBL :PL: with the pattern in R50
+:PLO:      29  
+:PL:       30  Y the row, X the column: R46 columns, every third pixel column (AGRAPH moves X on by 1, + 
+:FIND:     31  the area of the cursor's cell (row R32, column R35), R37 (0: summer zone): the row's label
+:RUN:      32  
+:CURSOR:   33  the cell R32, R35 inverted (XOR): 4 columns of 4 rows (the dot and the gaps round it,
+:INFO:     34  the texts of the cursor: line 1 the date, latitude and longitude; line 2 the zone on the
+:SUMMER:   35  no area: the Summer Zones
+:FOUND:    36  the area R37 run again in mode 2 (texts only: LBL :ZNOW: gives the zone, LBL :PC: draws no
+:ZS:       37  , :ZT:, :ZW: the name of the zone in R34
+:ZT:       38  
+:ZW:       39  
+:LATLON:   40  R34 = " 34.5N 18E": the centre of the cell, latitude 79.5 - 3i, longitude -171 + 3j
+:SOUTH:    41  
+:WEST:     42  
+:DTEXT:    43  R34 = "Fri 23 Oct 2026" for the JD in X (noon)
+:NAME3:    44  3 letters from position X of R88 (the days at 0, the months at 21 + 3 (month - 1))
+:CAL:      45  the calendar date of the JD in X (Fliegel and Van Flandern, as LOAD47): R44 the day number
+:LEGEND:   46  the keys and the patterns (tinyFont), drawn with each date
+:INIT:     47  the start: the patterns, the names, the cursor (34.5N 018E: off Libya), the screen
+:MAP:      48  the dot map, one dot column a step group (as LOAD47)
+:COL:      49  

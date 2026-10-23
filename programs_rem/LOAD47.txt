@@ -1,0 +1,760 @@
+REM LOAD47 v0.1.0 - Load 47: the load line zones of the world on the C47 / R47
+REM The International Convention on Load Lines 1966 (IMO), Annex II: zones, areas and seasonal periods
+REM (regulation 47 as amended by MSC.329(90)); ships over 100 m. The dot map of ZONE47 (3 degrees a dot,
+REM 81N to 54S); each 3-degree cell takes the area of its centre (tools/make_loadlines.py -> python/loadzones.py).
+REM On the date (the clock's, or moved with 7 and 9) every area is drawn in its zone: tropical a dot in each
+REM sea cell, winter two dots on a diagonal, summer nothing (land: the full 2 x 2 dot). A cursor (8 4 6 2)
+REM shows its cell: latitude and longitude of the centre, the zone on the date, the area and its seasons.
+REM INDICATIVE ONLY: 3 degrees a cell; the official boundaries are those of Annex II and its chart.
+REM Keys: 8 4 6 2 the cursor (around at the edges), 7 15 days back, 9 15 days on, 1 the clock's date again,
+REM 0 the end. The user's stack and LASTx are kept; at the end R20-R92 are cleared.
+REM Screen 400 x 240, row 0 = bottom. Dot row i (0 the top) at rows 194 - 3i and 193 - 3i, dot column j at
+REM x 20 + 3j and 21 + 3j (as ZONE47). The areas: LBL 01-nn (written by the build), each: its name STO 72,
+REM its season text STO 73, its zone outside the seasons (0 summer, 1 tropical, 2 winter) STO 74, the seasons
+REM (start MMDD, end MMDD, zone) STO 75-80 (none: 0), then XEQ :ZNOW:, RCL 90, X=0?, RTN (no change: no
+REM drawing) and its pieces: L, n, row, x and XEQ :PC: each (n dot columns from x, the band from that row, L the
+REM lower rows of its sea cells, worked out by the build). The cursor's area: the row labels LBL 50-94 (runs of areas).
+REM The zones drawn are kept in R89 (base 3, a digit an area): a new date draws again, in XOR, only the
+REM areas whose zone changed.
+REM Registers: R20-R22 the map bands, R25 x, R30 the date's JD (noon), R31 the days moved, R32 the cursor row
+REM i, R33 the key, R34 the text, R35 the cursor column j, R36 the mode (0 draw, 2 the texts of an area),
+REM R37 the cursor's area (0: summer zone), R38 the area being run, R39 MMDD of the date, R40 the zone of the
+REM area on the date, R41-R53 work, R60-R62 day month year (LBL :CAL:), R72-R80 the area, R88 the day and
+REM month names, R89 the zones drawn, R90-R92 the change.
+LBL "LOAD47"
+REM the user's stack in the local registers (as ELEM47 v1.2.0): X..T, A..D with R↓, then LASTx
+LocR 10
+STO R.00
+R↓
+STO R.01
+R↓
+STO R.02
+R↓
+STO R.03
+R↓
+STO R.04
+R↓
+STO R.05
+R↓
+STO R.06
+R↓
+STO R.07
+R↓
+LASTx
+STO R.08
+XEQ :INIT:
+REM ---- keys: 8 4 6 2 the cursor, 7 9 the date, 1 today, 0 the end ----
+DO
+  DO
+    PAUSE 50
+    KEY? 33
+  WHILE
+  ENDDO
+  RCL 33
+  82
+  X≠Y?
+WHILE
+  REM 8 4 6 2 (53 62 64 73): the row and column steps from the key code, as ELEM47: k div 10 - 6 rows,
+  REM k mod 10 - 3 columns; |dr| + |dc| = 1 for these four keys only
+  RCL 33
+  10
+  ÷
+  IP
+  6
+  -
+  STO 41
+  RCL 33
+  10
+  MOD
+  3
+  -
+  STO 42
+  ABS
+  RCL 41
+  ABS
+  +
+  1
+  X=Y?
+  XEQ :MOVE:
+  REM 7 (52) 15 days back, 9 (54) 15 days on, 1 (72) the clock's date
+  RCL 33
+  52
+  X=Y?
+  XEQ :BACK:
+  RCL 33
+  54
+  X=Y?
+  XEQ :FWD:
+  RCL 33
+  72
+  X=Y?
+  XEQ :TODAY:
+ENDDO
+REM ---- 0: the end: R20-R92 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
+20.73
+R-CLR
+0
+GRMOD
+20
+GRFNT
+CLLCD
+RCL R.08
+STO L
+RCL R.07
+RCL R.06
+RCL R.05
+RCL R.04
+RCL R.03
+RCL R.02
+RCL R.01
+RCL R.00
+RTN
+REM ---- LBL :MOVE: the cursor off, one cell (rows 0-44, columns 0-119, around), the cursor on, the texts ----
+LBL :MOVE:
+XEQ :CURSOR:
+RCL 32
+RCL 41
++
+45
++
+45
+MOD
+STO 32
+RCL 35
+RCL 42
++
+120
++
+120
+MOD
+STO 35
+XEQ :CURSOR:
+XEQ :INFO:
+RTN
+REM ---- LBL :BACK:, LBL :FWD:, LBL :TODAY: the date - 15, + 15 days, the clock's; then only the areas whose
+REM zone changed are drawn again (LBL :AREAS:), and the texts ----
+LBL :BACK:
+-15
+STO+ 31
+XEQ :NEWDAY:
+RTN
+LBL :FWD:
+15
+STO+ 31
+XEQ :NEWDAY:
+RTN
+LBL :TODAY:
+0
+STO 31
+LBL :NEWDAY:
+XEQ :DATE:
+XEQ :AREAS:
+XEQ :INFO:
+RTN
+REM ---- LBL :DATE: R30 = the JD (noon) of the clock's date + R31 days; R39 = MMDD (LBL :CAL:) ----
+LBL :DATE:
+Date→ⅅ
+Time→ℸ
+ⅅℸ→J
+0.5
++
+IP
+RCL 31
++
+STO 30
+XEQ :CAL:
+RCL 61
+100
+×
+RCL 60
++
+STO 39
+RTN
+REM ---- LBL :AREAS: every area (LBL 01-nn, R38) run in mode 0: each one whose zone changed drawn again, in
+REM XOR (GRMOD 3: the cursor and the land are not touched) ----
+LBL :AREAS:
+0
+STO 36
+3
+GRMOD
+REM ==== NAREAS (written by tools/build_load47.py: the number of areas)
+STO 38
+DO
+  XEQ IND 38
+  DSE 38
+WHILE
+ENDDO
+0
+GRMOD
+RTN
+REM ---- LBL :ZNOW: R40 = the zone of the area on the date R39: R74, or the zone of the season the date is
+REM in (R75-R77, R78-R80; a season from start to end, around the new year when start > end) ----
+LBL :ZNOW:
+RCL 74
+STO 40
+RCL 75
+RCL 76
+RCL 77
+XEQ :SEASON:
+RCL 78
+RCL 79
+RCL 80
+XEQ :SEASON:
+REM the change to draw, R90: 0 none, 1 the upper pixels, 2 the lower ones, 3 both. The zone drawn so far, R92,
+REM is the digit k - 1 in base 3 of R89 (0 at the start: nothing drawn); up = sum(new) - sum(old) with
+REM sum(z) = (z + 1) div 2 (tropical and winter have the upper pixel), low = z div 2 (winter only). Not in
+REM mode 0 (the texts of an area): R90 = 0, nothing drawn, R89 kept
+0
+STO 90
+RCL 36
+X≠0?
+RTN
+3
+RCL 38
+1
+-
+Y^X
+STO 91
+RCL 89
+X<>Y
+÷
+IP
+3
+MOD
+STO 92
+RCL 40
+X<>Y
+-
+RCL 91
+×
+STO+ 89
+RCL 40
+1
++
+2
+÷
+IP
+RCL 92
+1
++
+2
+÷
+IP
+-
+ABS
+STO 90
+RCL 40
+2
+÷
+IP
+RCL 92
+2
+÷
+IP
+-
+ABS
+2
+×
+STO+ 90
+RTN
+REM LBL :SEASON: Z start, Y end, X zone: R40 = X when the date R39 is in the season (start 0: none)
+LBL :SEASON:
+STO 43
+R↓
+STO 44
+R↓
+STO 45
+X=0?
+RTN
+REM in the season: (date >= start) + (date <= end) counted in R46; needed 2, or 1 when the season runs over
+REM the new year (start > end)
+0
+STO 46
+RCL 45
+RCL 39
+X≥Y?
+XEQ :INC:
+RCL 44
+RCL 39
+X≤Y?
+XEQ :INC:
+2
+STO 49
+RCL 45
+RCL 44
+X<Y?
+XEQ :NEED1:
+RCL 46
+RCL 49
+X>Y?
+RTN
+RCL 43
+STO 40
+RTN
+LBL :INC:
+1
+STO+ 46
+RTN
+LBL :NEED1:
+1
+STO 49
+RTN
+REM ---- LBL :PC: a piece of the area R38: T = L (the lower rows of its sea cells; the upper rows 2L), Z = n dot
+REM columns, Y = the band's bottom row, X = x of its first column (pushed by the area's label after its
+REM RCL 90 X=0? RTN: an area whose zone did not change skips its pieces). Its upper rows at x (LBL :PUP:),
+REM its lower rows at x + 1 (LBL :PLO:), as the change R90 says ----
+LBL :PC:
+STO 25
+R↓
+STO 45
+R↓
+STO 46
+R↓
+STO 48
+2
+×
+SINT
+STO 49
+RCL 48
+SINT
+STO 48
+RCL 90
+2
+MOD
+X≠0?
+XEQ :PUP:
+2
+RCL 90
+X≥Y?
+XEQ :PLO:
+RTN
+REM LBL :PUP: the upper rows, LBL :PLO: the lower rows (x + 1): LBL :PL: with the pattern in R50
+LBL :PUP:
+RCL 49
+STO 50
+RCL 45
+RCL 25
+XEQ :PL:
+RTN
+LBL :PLO:
+RCL 48
+STO 50
+RCL 45
+RCL 25
+1
++
+XEQ :PL:
+RTN
+REM LBL :PL: Y the row, X the column: R46 columns, every third pixel column (AGRAPH moves X on by 1, + 2)
+LBL :PL:
+RCL 46
+STO 47
+R↓
+DO
+  AGRAPH 50
+  2
+  +
+  DSE 47
+WHILE
+ENDDO
+RTN
+REM ---- LBL :FIND: the area of the cursor's cell (row R32, column R35), R37 (0: summer zone): the row's label
+REM LBL 50 + i, its runs "100 last column + area" in order, each LBL :RUN: (R43 = 1 once found) ----
+LBL :FIND:
+0
+STO 37
+STO 43
+RCL 32
+50
++
+STO 41
+XEQ IND 41
+RTN
+LBL :RUN:
+RCL 43
+X≠0?
+RTN
+R↓
+STO 53
+100
+÷
+IP
+RCL 35
+X>Y?
+RTN
+RCL 53
+100
+MOD
+STO 37
+1
+STO 43
+RTN
+REM ---- LBL :CURSOR: the cell R32, R35 inverted (XOR): 4 columns of 4 rows (the dot and the gaps round it,
+REM x 19 + 3j to 22 + 3j, rows 192 - 3i to 195 - 3i); twice = off ----
+LBL :CURSOR:
+3
+GRMOD
+RCL 32
+3
+×
+CHS
+192
++
+RCL 35
+3
+×
+19
++
+AGRAPH 26
+AGRAPH 26
+AGRAPH 26
+AGRAPH 26
+0
+GRMOD
+RTN
+REM ---- LBL :INFO: the texts of the cursor: line 1 the date, latitude and longitude; line 2 the zone on the
+REM date and the area; under the map the area's seasons. The cursor's area: the areas run in mode 1 ----
+LBL :INFO:
+XEQ :FIND:
+197
+0
+CLLCDxy
+0
+GRMOD
+21
+GRFNT
+RCL 30
+XEQ :DTEXT:
+RCL 34
+218
+14
+ATEXT Z
+XEQ :LATLON:
+RCL 34
+218
+230
+ATEXT Z
+REM line 2: the zone and the area (the area found again for its texts and zone)
+RCL 37
+X=0?
+XEQ :SUMMER:
+RCL 37
+X≠0?
+XEQ :FOUND:
+RCL 34
+198
+14
+ATEXT Z
+REM under the map: the seasons
+1
+GRMOD
+"                                                  "
+36
+14
+ATEXT Z
+0
+GRMOD
+RCL 73
+36
+14
+ATEXT Z
+RTN
+REM LBL :SUMMER: no area: the Summer Zones
+LBL :SUMMER:
+"SUMMER zone"
+STO 34
+"Summer all year"
+STO 73
+RTN
+REM LBL :FOUND: the area R37 run again in mode 2 (texts only: LBL :ZNOW: gives the zone, LBL :PC: draws nothing)
+LBL :FOUND:
+2
+STO 36
+RCL 37
+STO 38
+XEQ IND 38
+0
+STO 36
+RCL 40
+X=0?
+XEQ :ZS:
+RCL 40
+1
+X=Y?
+XEQ :ZT:
+RCL 40
+2
+X=Y?
+XEQ :ZW:
+" - "
+x→α 34
+RCL 72
+x→α 34
+RTN
+REM LBL :ZS:, :ZT:, :ZW: the name of the zone in R34
+LBL :ZS:
+"SUMMER"
+STO 34
+RTN
+LBL :ZT:
+"TROPICAL"
+STO 34
+RTN
+LBL :ZW:
+"WINTER"
+STO 34
+RTN
+REM ---- LBL :LATLON: R34 = " 34.5N 18E": the centre of the cell, latitude 79.5 - 3i, longitude -171 + 3j ----
+LBL :LATLON:
+RCL 32
+3
+×
+CHS
+79.5
++
+STO 41
+" "
+STO 34
+RCL 41
+ABS
+IP
+αIP 34
+"N "
+STO 48
+RCL 41
+X<0?
+XEQ :SOUTH:
+".5"
+x→α 34
+RCL 48
+x→α 34
+RCL 35
+3
+×
+171
+-
+180
++
+360
+MOD
+180
+-
+STO 41
+ABS
+αIP 34
+"E"
+STO 48
+RCL 41
+X<0?
+XEQ :WEST:
+RCL 48
+x→α 34
+RTN
+LBL :SOUTH:
+"S "
+STO 48
+RTN
+LBL :WEST:
+"W"
+STO 48
+RTN
+REM ---- LBL :DTEXT: R34 = "Fri 23 Oct 2026" for the JD in X (noon) ----
+LBL :DTEXT:
+XEQ :CAL:
+RCL 44
+1
++
+7
+MOD
+3
+×
+XEQ :NAME3:
+STO 34
+" "
+x→α 34
+RCL 60
+αIP 34
+" "
+x→α 34
+RCL 61
+3
+×
+18
++
+XEQ :NAME3:
+x→α 34
+" "
+x→α 34
+RCL 62
+αIP 34
+RTN
+REM LBL :NAME3: 3 letters from position X of R88 (the days at 0, the months at 21 + 3 (month - 1))
+LBL :NAME3:
+RCL 88
+STO 47
+R↓
+αSL 47
+3
+αLEFT 47
+RTN
+REM ---- LBL :CAL: the calendar date of the JD in X (Fliegel and Van Flandern, as ZONE47): R44 the day number,
+REM R60 the day, R61 the month, R62 the year (R45-R47, R55-R56 work) ----
+LBL :CAL:
+0.5
++
+IP
+STO 44
+32044
++
+STO 45
+4
+×
+3
++
+146097
+÷
+IP
+STO 46
+146097
+×
+4
+÷
+IP
+STO- 45
+RCL 45
+4
+×
+3
++
+1461
+÷
+IP
+STO 47
+1461
+×
+4
+÷
+IP
+STO- 45
+RCL 45
+5
+×
+2
++
+153
+÷
+IP
+STO 55
+153
+×
+2
++
+5
+÷
+IP
+RCL 45
+X<>Y
+-
+1
++
+STO 60
+RCL 55
+10
+÷
+IP
+STO 56
+-12
+×
+RCL 55
++
+3
++
+STO 61
+RCL 46
+100
+×
+RCL 47
++
+4800
+-
+RCL 56
++
+STO 62
+RTN
+REM ---- LBL :LEGEND: the keys and the patterns (tinyFont), drawn with each date ----
+LBL :LEGEND:
+10
+GRFNT
+"LOAD LINES 1966 ANNEX II (IMO), SHIPS OVER 100 m"
+24
+14
+ATEXT Z
+"PATTERN: . TROPICAL  : WINTER  BLANK SUMMER - INDICATIVE"
+14
+14
+ATEXT Z
+"8 4 6 2: CURSOR   7 9: DATE -+15 d   1: TODAY   0: END"
+4
+14
+ATEXT Z
+21
+GRFNT
+RTN
+REM ---- LBL :INIT: the start: the patterns, the names, the cursor (34.5N 018E: off Libya), the screen ----
+LBL :INIT:
+WSIZE 64
+1111#2
+STO 26
+"SunMonTueWedThuFriSatJanFebMarAprMayJunJulAugSepOctNovDec"
+STO 88
+15
+STO 32
+63
+STO 35
+REM the screen: the map, the legend, the cursor; R89 = 0 (no area drawn yet), then the date's areas
+CLLCD
+0
+GRMOD
+XEQ :MAP:
+XEQ :LEGEND:
+0
+STO 89
+XEQ :CURSOR:
+XEQ :TODAY:
+RTN
+REM ---- LBL :MAP: the dot map, one dot column a step group (as ZONE47) ----
+LBL :MAP:
+20
+STO 25
+REM ==== MAP (written by tools/build_zone47.py from python/worldmap.py)
+RTN
+LBL :COL:
+SINT
+STO 20
+DROP
+SINT
+STO 21
+DROP
+SINT
+STO 22
+DROP
+61
+RCL 25
+AGRAPH 20
+AGRAPH 20
+106
+RCL 25
+AGRAPH 21
+AGRAPH 21
+151
+RCL 25
+AGRAPH 22
+AGRAPH 22
+3
+STO+ 25
+RTN
+REM ==== AREAS (written by tools/build_load47.py from python/loadzones.py: LBL nn, the name STO 72, the
+REM season text STO 73, the zone STO 74, the seasons STO 75-80, XEQ :ZNOW:, RCL 90, X=0?, RTN, the pieces
+REM (L n row x) with XEQ :PC:, RTN;
+REM then the rows LBL 50 + i: their runs "100 last column + area" with XEQ :RUN:, RTN)
+END
