@@ -17,9 +17,10 @@ ZONE47 local labels: name (programs_rem/ZONE47.txt), number (build/ZONE47.txt), 
 :DATE:     52  the date of the JD in X in R34: "Fri 23 Oct". The day number N = IP(JD + 0.5);
 :NAME3:    53  3 letters from position X of R42 (the days at 0, the months at 21 + 3 (month - 1)):
 :INIT:     54  the start: TZ, the patterns, the map, the scale, the keys, the zone of TZ
-:NEAR:     55  every stop, nn down to 1: |offset - TZ| in R38, the nearest so far in R39, its stop in R37
-:BEST:     56  this stop is the nearest so far
-:HOME:     57  a triangle under the column of the home stop (R29), rows 38-40, centre x 26 + 15c
-:SCALE:    58  the ticks between the zones (x 19 + 15m, rows 56-58), the zone numbers (even zones,
-:MAP:      59  the dot map, one dot column a step group: the bands of rows 151, 106, 61 up (Z, Y, X),
-:COL:      60  one dot column: each band (SINT: the pattern as a short integer for AGRAPH) drawn twice
+:ASKTZ:    55  TZ asked: hours from UT of the clock, DST included (3 for UT+3, 0 for UT)
+:NEAR:     56  every stop, nn down to 1: |offset - TZ| in R38, the nearest so far in R39, its stop in R37
+:BEST:     57  this stop is the nearest so far
+:HOME:     58  a triangle under the column of the home stop (R29), rows 38-40, centre x 26 + 15c
+:SCALE:    59  the ticks between the zones (x 19 + 15m, rows 56-58), the zone numbers (even zones,
+:MAP:      60  the dot map, one dot column a step group: the bands of rows 151, 106, 61 up (Z, Y, X),
+:COL:      61  one dot column: each band (SINT: the pattern as a short integer for AGRAPH) drawn twice

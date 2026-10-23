@@ -5,10 +5,11 @@ REM standard offset of the IANA tz database (tzdata, zone1970.tab; tools/make_zo
 REM -12 (at sea) to +14, with a city and its daylight saving (DST, not added to the time: standard time).
 REM The column of the stop is highlighted (XOR); the header shows its offset, time and date, and the
 REM calculator's clock (TZ) with the difference; under the map the city and its DST.
-REM Keys: 4 the stop west (a smaller offset), 5 or 6 the stop east, around at the ends; 0 the end.
+REM Keys: 4 the stop west (a smaller offset), 5 the stop east (6 too), around at the ends; 0 the end.
 REM The time is updated every minute while the program waits for a key.
 REM TZ: the global variable "TZ" = the offset of the calculator's clock from UT in hours (4 for UT+4, -5.5
-REM for UT-5:30), as MOON47 in Almanac 47: 0 STO+ "TZ" makes it (0) when it is not there. The cursor
+REM for UT-5:30; the clock's offset as it is, summer time included), as MOON47 in Almanac 47: 0 STO+ "TZ"
+REM makes it (0) when it is not there; TZ = 0 (new, or a clock on UT): asked with INPUT, R/S keeps it. The cursor
 REM starts on the stop nearest to TZ, its column marked by a triangle.
 REM Screen 400 x 240, row 0 = bottom (as in Almanac 47). ATEXT in GRFNT 21, the small text in GRFNT 10.
 REM GRMOD and GRFNT take X (rejig writes "GRMOD r" as GRMOD and the number r: Almanac 47).
@@ -482,6 +483,10 @@ LBL :INIT:
 WSIZE 64
 0
 STO+ "TZ"
+REM TZ = 0: new, or the clock on UT: ask for it (INPUT as NAVFULL: the prompt in ALPHA, R/S keeps it)
+RCL "TZ"
+X=0?
+XEQ :ASKTZ:
 RCL "TZ"
 STO 30
 REM 64 ones and 10 ones (the band), 3 ones (a tick)
@@ -510,6 +515,11 @@ XEQ :REC:
 XEQ :HOME:
 XEQ :BAND:
 XEQ :TICK:
+RTN
+REM LBL :ASKTZ: TZ asked: hours from UT of the clock, DST included (3 for UT+3, 0 for UT)
+LBL :ASKTZ:
+"TZ=CLOCK-UT h, R/S"
+INPUT "TZ"
 RTN
 REM LBL :NEAR: every stop, nn down to 1: |offset - TZ| in R38, the nearest so far in R39, its stop in R37
 LBL :NEAR:
@@ -580,7 +590,7 @@ ENDDO
 10
 GRFNT
 REM ==== LABELS (written by tools/build_zone47.py: the zone numbers, string row x ATEXT Z)
-"4: WEST    5 6: EAST    0: END    TZ = clock - UT"
+"4: WEST    5: EAST    0: END    TZ = clock - UT"
 4
 14
 ATEXT Z

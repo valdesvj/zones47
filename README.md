@@ -25,7 +25,7 @@ page of a Garmin watch, without highlighting countries.
 | Key | |
 |---|---|
 | 4 | the stop west (a smaller offset) |
-| 5 or 6 | the stop east |
+| 5 | the stop east (6 works too) |
 | 0 | the end: the screen cleared, your stack and LASTx as they were |
 
 At the ends it goes around: east of +14 is −12, west of −12 is +14.
@@ -39,8 +39,10 @@ the same variable as MOON47 in [Almanac 47](https://github.com/valdesvj/almanac4
     -5.5 STO "TZ"   clock on UT−5:30
     0 STO "TZ"      clock on UT
 
-If `TZ` is not there, ZONE47 makes it with 0 (`0 STO+ "TZ"`) and takes the clock as UT. Change it when you
-change the calculator's clock (at sea, when the ship's time changes).
+`TZ` is what your clock shows minus UT, **summer time included** (Madrid in July: 2). If `TZ` is not there
+(or is 0), ZONE47 asks for it at the start (`TZ=CLOCK-UT h, R/S`): key the hours and R/S, or just R/S to keep
+0 (clock on UT). Change it when you change the calculator's clock (at sea, when the ship's time changes, or
+at a DST change).
 
 ## Updating the time zones
 
