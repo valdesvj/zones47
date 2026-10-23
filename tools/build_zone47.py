@@ -192,12 +192,36 @@ def num(v):
     return ('%.2f' % v).rstrip('0').rstrip('.') if v != int(v) else str(int(v))
 
 
-def stop_steps():
-    """The stops (python/zones.py): LBL nn, the city, DST, the column, the offset, RTN."""
+def rules():
+    """The DST rules of the stops, each once, in order: r = 1, 2 ... (LBL 40 + r)."""
     from zones import ZONES
     out = []
-    for i, (off, col, city, dst, *_rest) in enumerate(ZONES, 1):
-        out += ['LBL %02d' % i, '"%s"' % city, num(dst), str(col), num(off), 'RTN']
+    for z in ZONES:
+        if z[7] and z[7] not in out:
+            out.append(z[7])
+    return out
+
+
+def code(t):
+    """A transition (month, n, weekday, hour) -> the code 100 month + 10 n + weekday."""
+    return 100 * t[0] + 10 * t[1] + t[2]
+
+
+def stop_steps():
+    """The stops (python/zones.py): LBL nn, the city, 100r + 10 DST (r the rule, 0 none), the column, the
+    offset, RTN; then the rules LBL 40 + r: the end hour, the end code, the start hour, the start code, RTN."""
+    from zones import ZONES
+    rs = rules()
+    if len(ZONES) >= 40 or len(rs) > 9:
+        raise SystemExit('%d stops (LBL 01-39) and %d rules (LBL 41-49): more than the labels kept for them'
+                         % (len(ZONES), len(rs)))
+    out = []
+    for i, z in enumerate(ZONES, 1):
+        off, col, city, dst, rule = z[0], z[1], z[2], z[3], z[7]
+        r = rs.index(rule) + 1 if rule else 0
+        out += ['LBL %02d' % i, '"%s"' % city, num(100 * r + 10 * dst if r else 0), str(col), num(off), 'RTN']
+    for r, (st, en) in enumerate(rs, 1):
+        out += ['LBL %02d' % (40 + r), num(en[3]), str(code(en)), num(st[3]), str(code(st)), 'RTN']
     return out
 
 

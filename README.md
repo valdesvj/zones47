@@ -4,7 +4,7 @@
 zones** with the keys 4 and 5 (or 6), highlighting the 15° column of each one — in the spirit of the time-zone
 page of a Garmin watch, without highlighting countries.
 
-![ZONE47 on New York](docs/ZONE47_newyork.png)
+![ZONE47 tour](docs/ZONE47_tour.gif)
 
 ## What it shows
 
@@ -14,11 +14,22 @@ page of a Garmin watch, without highlighting countries.
   including +5:30, +5:45, +8:45, +12:45, +13 and +14, plus **−12 "at sea"** (the nautical zone, no one lives
   there). The highlighted column is the offset's own for whole hours −12…+12; the others take the column of
   their city's longitude.
-- **Line 1**: the offset, its time and date (weekday, day, month).
+- **Line 1**: the offset in force now, the local time and date there (weekday, day, month), **daylight
+  saving included**.
 - **Line 2**: your clock (`TZ`), its time, and the difference.
-- **Under the map**: a city of that offset and its daylight saving, e.g. `New York   DST +1 h in summer`.
-  The times shown are **standard time**: add the DST in summer where it applies.
-- A triangle marks the column of your own zone (the stop nearest to `TZ`). The time updates every minute.
+- **Under the map**: the city of that stop and, if it has daylight saving, whether it is on now:
+  `New York   summer time, DST +1 h` or `Sydney   winter time, DST +1 h`.
+- A triangle marks the column of your own zone (the stop nearest to `TZ` now). The time updates every
+  minute, also across a DST change.
+
+## Daylight saving, worked out on the calculator
+
+Each stop's city has its DST rule from the IANA tz database, found by `tools/make_zones.py` from the real
+transitions of 2026-2035 and checked to follow one rule: the n-th (or last) weekday of a month at an hour of
+standard time. Nine rules cover the 16 cities with DST (US/Canada, London, Paris, Azores, Cairo, Australia,
+Lord Howe, New Zealand, Chatham). ZONE47 computes the start and end of the current year from the date and
+adds the DST when it is on, northern or southern hemisphere. The DST shown is the city's: other places on the
+same standard offset may not follow it (Arizona, Brazil, most of Africa).
 
 ## Keys
 
@@ -50,7 +61,8 @@ The stops come from the computer's tz database (on Linux `/usr/share/zoneinfo`, 
 
     python3 tools/make_zones.py      # python/zones.py from zone1970.tab, prints the stops and the tzdata version
     python3 tools/build_zone47.py    # programs/ and build/ZONE47.txt with the new stops
-    python3 tests/test_zone47.py     # every stop checked against Python's zoneinfo
+    python3 tests/test_zone47.py     # every stop and every DST change checked against Python's zoneinfo
+    python3 tools/make_gif.py        # docs/ZONE47_tour.gif
 
 ## Build and files
 
@@ -60,16 +72,18 @@ The stops come from the computer's tz database (on Linux `/usr/share/zoneinfo`, 
 | `programs/ZONE47.txt`, `build/ZONE47.txt` | the calculator program (to convert with rejig) |
 | `listings/` | numbered steps with comments, the local labels |
 | `python/worldmap.py` | the dot map (`tools/make_map.py`, land/sea from the GLOBE 1 km data, NOAA) |
-| `python/zones.py` | the stops (`tools/make_zones.py`, from tzdata) |
+| `python/zones.py` | the stops and their DST rules (`tools/make_zones.py`, from tzdata) |
 | `python/c47sim.py`, `stdfont.py`, `tinyfont.py` | the C47 simulator and fonts, from Almanac 47 |
 | `python/zone47sim.py` | runs ZONE47 in the simulator, writes `docs/*.png` |
 | `tests/test_zone47.py` | the tests |
 
+Written with the C47 STRUCT commands (IF / ELSE / ENDIF, DO / WHILE / ENDDO).
 Calculators: C47 / R47 with STRUCT, ATEXT and GRFNT (firmware 00.109.05.00a0.ALPHA or later, as Elements 47).
 Not yet run on a real C47.
 
 ## Credits and licence
 
-Victor Valdes, GNU GPL v3.0 or later (`LICENSE`, `NOTICE`). Written with the help of AI (`AI_ASSISTANCE.md`).
+Victor Valdes, GNU GPL v3.0 or later (`LICENSE`, the same as Almanac 47; `NOTICE`). Written with the help of
+AI, used responsibly: see `AI_ASSISTANCE.md`. Not an official time source.
 Time zones: the IANA tz database (https://www.iana.org/time-zones), public domain. Map: global-land-mask
 (GLOBE, NOAA). Fonts: the C43/C47 firmware. SwissMicros, C47, R47 and DM42 are trademarks of their owners.

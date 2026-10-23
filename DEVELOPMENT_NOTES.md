@@ -34,8 +34,26 @@
   -9.75 and dates across a year end and a leap day: every header and city text against Python's datetime and
   python/zones.py; the screen the same after a full turn; TZ kept; the stack kept; R20-R49 cleared.
 
+## Oct 23, 2026 - DST worked out on the calculator (Victor: "do it real")
+
+- tools/make_zones.py: the DST rule of each stop's city from zoneinfo's transitions in 2026-2035 (to the
+  minute), as (month, n 1-4 or 5 = last, weekday 0 Sunday, hour of standard time) for the start and the end;
+  the tool stops if a city does not follow one such rule. 16 cities, 9 rules.
+- The build: the stop's DST field = 100r + 10 DST (r the rule); the rules LBL 41-49 push the end hour, the
+  end code, the start hour, the start code (code = 100 month + 10 n + weekday).
+- ZONE47: LBL :NOWOFF: (R59 = the offset now) takes the stop's standard time t, its year (LBL :CAL:), the
+  start and the end of that year (LBL :TRANS:, LBL :JDN: the 1st of a month; n = 5 from the 1st of the next
+  month - 1), on when start <= t < end (north) or t >= start or t < end (south). The header, the clock line
+  and the home stop use the offset now. Home stop: the nearest to TZ now, of two as near the one without DST
+  on (TZ 3 in October: Moscow, not Cairo on summer time).
+- Steps: 1 602; the start 11 494 in the simulator (the home stop checks DST at all 38 stops), a move 864.
+- Tests: every stop at 8 TZ values; each rule city 30 minutes before and after each change in 2026, 2027
+  and 2030; the texts against zoneinfo.
+- docs/ZONE47_tour.gif (tools/make_gif.py, Pillow): key 5 through every stop. LICENSE copied from Almanac 47
+  (the same GPL-3.0 text, its http links), AI_ASSISTANCE.md in Almanac 47's form.
+
 ## To do
 
 1. Run on Victor's C47 (convert build/ZONE47.txt with rejig).
 2. c47sim fix in Almanac 47 (above).
-3. Ideas: a key to set TZ from the stop; DST rules on the calculator; day / night shading.
+3. Ideas: a key to set TZ from the stop; day / night shading.

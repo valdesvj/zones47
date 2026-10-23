@@ -7,8 +7,8 @@ of the License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
 without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-See the GNU General Public License for more details: the LICENSE file in this folder,
-or https://www.gnu.org/licenses/.
+See the GNU General Public License for more details: the LICENSE file in this folder
+(the same as Almanac 47's), or https://www.gnu.org/licenses/.
 
 This covers everything in this repository: the C47 calculator program (programs/,
 programs_rem/, listings/, build/), the PC tools (python/, tools/), the tests and the
@@ -21,8 +21,13 @@ documentation - with these exceptions and sources:
   - python/worldmap.py: land and sea from the Python package global-land-mask (GLOBE 1 km
     data, NOAA), by tools/make_map.py.
 
-Written with the help of AI (see AI_ASSISTANCE.md). I reviewed and checked the results and
-take full responsibility for this project, its correctness, and any mistakes in it.
+Written with the help of AI (Claude by Anthropic, see AI_ASSISTANCE.md).
+I used AI as a cooperative research and drafting tool, but I reviewed, validated, and
+checked every result, and I take full responsibility for this project, its correctness,
+and any mistakes in it.
 
 SwissMicros, C47, R47, DM42, Garmin and Instinct are trademarks of their owners.
 This project is not affiliated with or endorsed by them.
+
+NOT AN OFFICIAL TIME SOURCE. The times depend on the calculator's clock and TZ, and on the tz
+database of the build; time zones and daylight-saving rules change by law. Check official sources.

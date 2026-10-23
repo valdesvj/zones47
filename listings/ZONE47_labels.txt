@@ -3,24 +3,30 @@ ZONE47 local labels: name (programs_rem/ZONE47.txt), number (build/ZONE47.txt), 
 :WEST:     00  one stop west: the highlight off, the stop - 1 (0 -> nn), the new stop
 :MOVED:    39  the new stop: its record, the highlight on, the header
 :EAST:     40  one stop east: the stop + 1 (nn + 1 -> 1)
-:REC:      41  the record of the stop R32 (XEQ IND 32): R28 the offset, R29 the column, R49 DST,
-:BAND:     42  the column R29 inverted (XOR): 15 pixel columns of 138 rows, 59-196,
-:R64:      43  15 columns of 64 rows from Y (row), X (column)
-:TICK:     44  the clock: R31 = the JD of UT (the clock - TZ hours); a new minute: the header
-:HEAD:     45  the header (rows 197 up cleared): line 1 the zone, its time and date; line 2 TZ, the
-:DST:      46  "   DST +1 h in summer" appended to R34
-:SAME:     47  the text "same time"; LBL :DIFF: the difference R39 and " h"
-:DIFF:     48  
-:OFFS:     49  the offset X appended to R34: the sign, the hours, ":mm" when it has minutes
-:TWO:      50  X (0-99) appended to R34 in two digits
-:HHMM:     51  the time of the JD in X appended to R34 as hh:mm
-:DATE:     52  the date of the JD in X in R34: "Fri 23 Oct". The day number N = IP(JD + 0.5);
-:NAME3:    53  3 letters from position X of R42 (the days at 0, the months at 21 + 3 (month - 1)):
-:INIT:     54  the start: TZ, the patterns, the map, the scale, the keys, the zone of TZ
-:ASKTZ:    55  TZ asked: hours from UT of the clock, DST included (3 for UT+3, 0 for UT)
-:NEAR:     56  every stop, nn down to 1: |offset - TZ| in R38, the nearest so far in R39, its stop in R37
-:BEST:     57  this stop is the nearest so far
-:HOME:     58  a triangle under the column of the home stop (R29), rows 38-40, centre x 26 + 15c
-:SCALE:    59  the ticks between the zones (x 19 + 15m, rows 56-58), the zone numbers (even zones,
-:MAP:      60  the dot map, one dot column a step group: the bands of rows 151, 106, 61 up (Z, Y, X),
-:COL:      61  one dot column: each band (SINT: the pattern as a short integer for AGRAPH) drawn twice
+:REC:      50  the record of the stop R32 (XEQ IND 32): R28 the offset, R29 the column, R49 DST,
+:NOWOFF:   51  R59 = the offset of the stop now: R28, + R49 when its rule R50 has DST on at the UT
+:DSTON:    52  DST on: R59 = R28 + R49
+:TRANS:    53  the JD (standard time) of the code R56 at the hour R58 in the year R62:
+:JDN:      54  the day number of the 1st of the month X (13 = January of the next year) of the year R62:
+:BAND:     55  the column R29 inverted (XOR): 15 pixel columns of 138 rows, 59-196,
+:R64:      56  15 columns of 64 rows from Y (row), X (column)
+:TICK:     57  the clock (LBL :CLOCK:); a new minute: the header
+:CLOCK:    58  R31 = the JD of UT now (the clock - TZ hours), also in X
+:HEAD:     59  the header (rows 197 up cleared): line 1 the zone, its time and date; line 2 TZ, the
+:DST:      60  "   summer time, DST +1 h" (DST on now) or "   winter time, DST +1 h" appended to R34
+:SAME:     61  the text "same time"; LBL :DIFF: the difference R39 and " h"
+:DIFF:     62  
+:OFFS:     63  the offset X appended to R34: the sign, the hours, ":mm" when it has minutes
+:TWO:      64  X (0-99) appended to R34 in two digits
+:HHMM:     65  the time of the JD in X appended to R34 as hh:mm
+:DATE:     66  the date of the JD in X in R34: "Fri 23 Oct" (LBL :CAL:; the weekday N + 1 mod 7,
+:CAL:      67  the calendar date of the JD in X (Fliegel and Van Flandern): R44 the day number
+:NAME3:    68  3 letters from position X of R42 (the days at 0, the months at 21 + 3 (month - 1)):
+:INIT:     69  the start: TZ, the patterns, the map, the scale, the keys, the zone of TZ
+:ASKTZ:    70  TZ asked: hours from UT of the clock, DST included (3 for UT+3, 0 for UT)
+:NEAR:     71  every stop, nn down to 1: |offset - TZ| in R38, the nearest so far in R39, its stop in R37
+:BEST:     72  this stop is the nearest so far
+:HOME:     73  a triangle under the column of the home stop (R29), rows 38-40, centre x 26 + 15c
+:SCALE:    74  the ticks between the zones (x 19 + 15m, rows 56-58), the zone numbers (even zones,
+:MAP:      75  the dot map, one dot column a step group: the bands of rows 151, 106, 61 up (Z, Y, X),
+:COL:      76  one dot column: each band (SINT: the pattern as a short integer for AGRAPH) drawn twice

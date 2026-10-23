@@ -2,7 +2,7 @@ REM ZONE47 v0.1.0 - Zones 47: the world time zones on the C47 / R47
 REM A dot map of the world (3 degrees a dot, 81N to 54S) in 24 columns of 15 degrees, UTC-11 at the left
 REM to UTC+-12 at the right (the last column: 172.5E to 172.5W). The official time zones: one stop per
 REM standard offset of the IANA tz database (tzdata, zone1970.tab; tools/make_zones.py -> python/zones.py),
-REM -12 (at sea) to +14, with a city and its daylight saving (DST, not added to the time: standard time).
+REM -12 (at sea) to +14, with a city and its daylight saving rule (DST: worked out for the date, added when on).
 REM The column of the stop is highlighted (XOR); the header shows its offset, time and date, and the
 REM calculator's clock (TZ) with the difference; under the map the city and its DST.
 REM Keys: 4 the stop west (a smaller offset), 5 the stop east (6 too), around at the ends; 0 the end.
@@ -14,7 +14,7 @@ REM starts on the stop nearest to TZ, its column marked by a triangle.
 REM Screen 400 x 240, row 0 = bottom (as in Almanac 47). ATEXT in GRFNT 21, the small text in GRFNT 10.
 REM GRMOD and GRFNT take X (rejig writes "GRMOD r" as GRMOD and the number r: Almanac 47).
 REM The user's stack and LASTx are kept (local registers R.00-R.08, as ELEM47 v1.2.0); at the end the
-REM work registers R20-R49 are cleared (R-CLR), the other registers are the user's.
+REM work registers R20-R71 are cleared (R-CLR), the other registers are the user's.
 REM Map: dot column j (0-119) at x 20 + 3j and 21 + 3j, dot row i (0 the top) at rows 194 - 3i, 193 - 3i.
 REM Map column c (0-23: UTC-11 ... UTC+-12) at x 19 + 15c to 33 + 15c, rows 59-196.
 REM The stops: LBL 01-nn (written by the build), each pushes the city (text), DST, the column, the offset.
@@ -22,7 +22,8 @@ REM Registers: R20-R22 the three bands of a map column (rows 61, 106, 151 up), R
 REM R25 the drawing column x, R26 the tick (3 rows), R27 a counter, R30 TZ, R31 the JD of UT now,
 REM R28 the offset of the stop, R29 its column, R32 the stop (1-nn), R33 the key, R34 the text, R35 the JD
 REM in the zone, R36 the minute shown, R37 the home stop, R38-R41 work, R42 the day and month names, R43 nn
-REM (the number of stops), R44-R47 the date, R48 the city, R49 its DST.
+REM (the number of stops), R44-R47 the date, R48 the city, R49 its DST (h), R50 its rule, R53-R58 and
+REM R63-R71 the DST work, R59 the offset now, R60-R62 day month year.
 REM Control flow in the C47 STRUCT commands (IF / ELSE / ENDIF, DO / WHILE / ENDDO: the firmware's app
 REM note AN0007), indented two spaces per level; tools/build_zone47.py checks them and numbers them.
 LBL "ZONE47"
@@ -73,8 +74,8 @@ WHILE
   X>Y?
   XEQ :EAST:
 ENDDO
-REM ---- 0: the end: R20-R49 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
-20.30
+REM ---- 0: the end: R20-R71 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
+20.52
 R-CLR
 0
 GRMOD
@@ -131,6 +132,214 @@ R↓
 STO 49
 R↓
 STO 48
+REM the DST field 100r + 10 DST: R50 the rule r (0: none), R49 the DST in hours
+RCL 49
+100
+÷
+IP
+STO 50
+RCL 49
+100
+MOD
+10
+÷
+STO 49
+RTN
+REM ---- LBL :NOWOFF: R59 = the offset of the stop now: R28, + R49 when its rule R50 has DST on at the UT
+REM R31. The rule (LBL 40 + r) pushes the end hour, the end code, the start hour, the start code; a code
+REM is 100 month + 10 n + weekday (n 1-4, 5 the last; weekday 0 Sunday), the hours in standard time.
+REM R53 the start, R54 the end (JDs in the stop's standard time) in the year of R57 = R31 + R28/24 (the stop's standard time now) ----
+LBL :NOWOFF:
+RCL 28
+STO 59
+RCL 50
+X=0?
+RTN
+RCL 28
+24
+÷
+RCL 31
++
+STO 57
+XEQ :CAL:
+RCL 50
+40
++
+STO 56
+XEQ IND 56
+STO 56
+R↓
+STO 58
+R↓
+STO 63
+R↓
+STO 64
+XEQ :TRANS:
+STO 53
+RCL 63
+STO 56
+RCL 64
+STO 58
+XEQ :TRANS:
+STO 54
+REM north (start < end): on from the start to the end; south (the end first): on from the start, or
+REM before the end
+RCL 53
+RCL 54
+X>Y?
+IF
+  RCL 53
+  RCL 57
+  X≥Y?
+  IF
+    RCL 54
+    RCL 57
+    X<Y?
+    XEQ :DSTON:
+  ENDIF
+ELSE
+  RCL 53
+  RCL 57
+  X≥Y?
+  XEQ :DSTON:
+  RCL 54
+  RCL 57
+  X<Y?
+  XEQ :DSTON:
+ENDIF
+RTN
+REM LBL :DSTON: DST on: R59 = R28 + R49
+LBL :DSTON:
+RCL 49
+RCL 28
++
+STO 59
+RTN
+REM ---- LBL :TRANS: the JD (standard time) of the code R56 at the hour R58 in the year R62:
+REM n < 5: the first weekday w of the month from its 1st (R65), + 7 (n - 1); n = 5: the last w back from the
+REM last day of the month (the 1st of month + 1, - 1) ----
+LBL :TRANS:
+RCL 56
+10
+MOD
+STO 66
+RCL 56
+10
+÷
+IP
+10
+MOD
+STO 67
+RCL 56
+100
+÷
+IP
+STO 71
+5
+RCL 67
+X=Y?
+IF
+  RCL 71
+  1
+  +
+  XEQ :JDN:
+  1
+  -
+  STO 65
+  1
+  +
+  7
+  MOD
+  RCL 66
+  -
+  7
+  +
+  7
+  MOD
+  STO- 65
+ELSE
+  RCL 71
+  XEQ :JDN:
+  STO 65
+  RCL 66
+  RCL 65
+  1
+  +
+  7
+  MOD
+  -
+  7
+  +
+  7
+  MOD
+  STO+ 65
+  RCL 67
+  1
+  -
+  7
+  ×
+  STO+ 65
+ENDIF
+RCL 65
+0.5
+-
+RCL 58
+24
+÷
++
+RTN
+REM ---- LBL :JDN: the day number of the 1st of the month X (13 = January of the next year) of the year R62:
+REM a = (14 - m) div 12, y = Y + 4800 - a, m' = m + 12a - 3, N = 1 + (153m' + 2) div 5 + 365y + y div 4
+REM - y div 100 + y div 400 - 32045 (R68 a, R69 y, R70 m') ----
+LBL :JDN:
+STO 70
+14
+X<>Y
+-
+12
+÷
+IP
+STO 68
+12
+×
+STO+ 70
+3
+STO- 70
+RCL 62
+4800
++
+RCL 68
+-
+STO 69
+RCL 70
+153
+×
+2
++
+5
+÷
+IP
+RCL 69
+365
+×
++
+RCL 69
+4
+÷
+IP
++
+RCL 69
+100
+÷
+IP
+-
+RCL 69
+400
+÷
+IP
++
+32044
+-
 RTN
 REM ---- LBL :BAND: the column R29 inverted (XOR): 15 pixel columns of 138 rows, 59-196,
 REM in three passes (64 + 64 + 10 rows); twice = off ----
@@ -173,16 +382,9 @@ DO
 WHILE
 ENDDO
 RTN
-REM ---- LBL :TICK: the clock: R31 = the JD of UT (the clock - TZ hours); a new minute: the header ----
+REM ---- LBL :TICK: the clock (LBL :CLOCK:); a new minute: the header ----
 LBL :TICK:
-Date→ⅅ
-Time→ℸ
-ⅅℸ→J
-RCL 30
-24
-÷
--
-STO 31
+XEQ :CLOCK:
 1440
 ×
 0.0001
@@ -195,9 +397,21 @@ R↓
 STO 36
 XEQ :HEAD:
 RTN
+REM LBL :CLOCK: R31 = the JD of UT now (the clock - TZ hours), also in X
+LBL :CLOCK:
+Date→ⅅ
+Time→ℸ
+ⅅℸ→J
+RCL 30
+24
+÷
+-
+STO 31
+RTN
 REM ---- LBL :HEAD: the header (rows 197 up cleared): line 1 the zone, its time and date; line 2 TZ, the
 REM clock's time and the difference zone - TZ ----
 LBL :HEAD:
+XEQ :NOWOFF:
 197
 0
 CLLCDxy
@@ -207,15 +421,15 @@ GRMOD
 GRFNT
 "UTC"
 STO 34
-RCL 28
+RCL 59
 X≠0?
 XEQ :OFFS:
 RCL 34
 218
 14
 ATEXT Z
-REM the zone's JD (R35), its time and date
-RCL 28
+REM the zone's JD (R35), its time and date (its offset now, R59: DST added when it is on)
+RCL 59
 24
 ÷
 RCL 31
@@ -256,7 +470,7 @@ RCL 34
 198
 140
 ATEXT Z
-RCL 28
+RCL 59
 RCL 30
 -
 STO 39
@@ -289,13 +503,22 @@ RCL 34
 14
 ATEXT Z
 RTN
-REM LBL :DST: "   DST +1 h in summer" appended to R34
+REM LBL :DST: "   summer time, DST +1 h" (DST on now) or "   winter time, DST +1 h" appended to R34
 LBL :DST:
-"   DST "
+RCL 59
+RCL 28
+X=Y?
+IF
+  "   winter"
+ELSE
+  "   summer"
+ENDIF
+x→α 34
+" time, DST "
 x→α 34
 RCL 49
 XEQ :OFFS:
-" h in summer"
+" h"
 x→α 34
 RTN
 REM LBL :SAME: the text "same time"; LBL :DIFF: the difference R39 and " h"
@@ -376,13 +599,11 @@ RCL 41
 MOD
 XEQ :TWO:
 RTN
-REM ---- LBL :DATE: the date of the JD in X in R34: "Fri 23 Oct". The day number N = IP(JD + 0.5);
-REM the weekday N + 1 mod 7 (0 Sunday); the day and month from N (Fliegel and Van Flandern) ----
+REM ---- LBL :DATE: the date of the JD in X in R34: "Fri 23 Oct" (LBL :CAL:; the weekday N + 1 mod 7,
+REM 0 Sunday) ----
 LBL :DATE:
-0.5
-+
-IP
-STO 44
+XEQ :CAL:
+RCL 44
 1
 +
 7
@@ -393,8 +614,27 @@ XEQ :NAME3:
 STO 34
 " "
 x→α 34
-REM a = N + 32044, b = (4a + 3) div 146097, c = a - 146097b div 4
-RCL 44
+RCL 60
+αIP 34
+" "
+x→α 34
+RCL 61
+3
+×
+18
++
+XEQ :NAME3:
+x→α 34
+RTN
+REM ---- LBL :CAL: the calendar date of the JD in X (Fliegel and Van Flandern): R44 the day number
+REM N = IP(JD + 0.5), R60 the day, R61 the month, R62 the year. a = N + 32044, b = (4a + 3) div 146097,
+REM c = a - 146097b div 4, d = (4c + 3) div 1461, e = c - 1461d div 4, m = (5e + 2) div 153 (R45 a, c, e;
+REM R46 b; R47 d; R55 m) ----
+LBL :CAL:
+0.5
++
+IP
+STO 44
 32044
 +
 STO 45
@@ -405,13 +645,13 @@ STO 45
 146097
 ÷
 IP
+STO 46
 146097
 ×
 4
 ÷
 IP
 STO- 45
-REM d = (4c + 3) div 1461, e = c - 1461d div 4 (in R45)
 RCL 45
 4
 ×
@@ -420,13 +660,13 @@ RCL 45
 1461
 ÷
 IP
+STO 47
 1461
 ×
 4
 ÷
 IP
 STO- 45
-REM m = (5e + 2) div 153; day = e - (153m + 2) div 5 + 1; month = m + 3 - 12 (m div 10)
 RCL 45
 5
 ×
@@ -435,7 +675,8 @@ RCL 45
 153
 ÷
 IP
-STO 46
+STO 55
+REM the day = e - (153m + 2) div 5 + 1
 153
 ×
 2
@@ -448,25 +689,30 @@ X<>Y
 -
 1
 +
-αIP 34
-" "
-x→α 34
-RCL 46
+STO 60
+REM the month = m + 3 - 12 (m div 10); the year = 100b + d - 4800 + m div 10
+RCL 55
 10
 ÷
 IP
+STO 56
 -12
 ×
-RCL 46
-+
-2
+RCL 55
 +
 3
-×
-21
 +
-XEQ :NAME3:
-x→α 34
+STO 61
+RCL 46
+100
+×
+RCL 47
++
+4800
+-
+RCL 56
++
+STO 62
 RTN
 REM LBL :NAME3: 3 letters from position X of R42 (the days at 0, the months at 21 + 3 (month - 1)):
 REM the names copied to R47, X letters off the left (αSL), the 3 left ones (αLEFT) in X
@@ -507,7 +753,9 @@ XEQ :MAP:
 XEQ :SCALE:
 REM ==== NSTOPS (written by tools/build_zone47.py: the number of stops)
 STO 43
-REM the home stop: the one nearest to TZ (the first of two as near), R37
+REM the home stop: the one nearest to TZ by its offset now, DST included (of two as near: the one
+REM without DST on, then the first), R37
+XEQ :CLOCK:
 XEQ :NEAR:
 RCL 37
 STO 32
@@ -531,10 +779,18 @@ DO
   RCL 27
   STO 32
   XEQ :REC:
-  RCL 28
+  XEQ :NOWOFF:
+  RCL 59
   RCL 30
   -
   ABS
+  REM + DST on / 100: of two as near, the one on standard time (TZ 3 in October: Moscow, not Cairo)
+  RCL 59
+  RCL 28
+  -
+  100
+  ÷
+  +
   STO 38
   RCL 39
   X≥Y?
@@ -629,6 +885,7 @@ AGRAPH 22
 3
 STO+ 25
 RTN
-REM ==== STOPS (written by tools/build_zone47.py from python/zones.py: LBL nn, the city, DST, the column,
-REM the offset, RTN)
+REM ==== STOPS (written by tools/build_zone47.py from python/zones.py: LBL nn, the city, 100r + 10 DST,
+REM the column, the offset, RTN; then the DST rules LBL 40 + r: the end hour, end code, start hour,
+REM start code, RTN)
 END

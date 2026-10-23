@@ -4,7 +4,8 @@ texts of the header and the city line against Python's datetime and python/zones
 a full turn, TZ (none, whole, half hours, +13, +14, -12, -9:45), the user's stack kept, the work registers cleared.
   python3 tools/build_zone47.py && python3 tests/test_zone47.py"""
 import os, sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from decimal import Decimal as D
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -27,21 +28,29 @@ def offs(o):
     return s + str(h) + (':%02d' % m if m else '')
 
 
+def now_offset(i, ut):
+    """The offset of stop i now (zoneinfo of its city: standard + DST when it is on)."""
+    z = ZONES[i - 1]
+    return ut.replace(tzinfo=timezone.utc).astimezone(ZoneInfo(z[6])).utcoffset().total_seconds() / 3600
+
+
 def expect(i, tz, local):
-    """The header texts of stop i (1..), TZ, the clock's local time (a datetime): 6 header texts, the city line."""
-    off, col, city, dst = ZONES[i - 1][:4]
-    ut = local - timedelta(hours=tz); z = ut + timedelta(hours=off)
+    """The header texts of stop i (1..), TZ, the clock's local time (a datetime): 6 header texts, the city
+    line. The times from Python's zoneinfo (IANA), DST included."""
+    std, col, city, dst = ZONES[i - 1][:4]
+    ut = local - timedelta(hours=tz); off = now_offset(i, ut); z = ut + timedelta(hours=off)
     d = off - tz
+    line = city + ('   %s time, DST %s h' % ('summer' if off != std else 'winter', offs(dst)) if ZONES[i - 1][7] else '')
     return ['UTC' + (offs(off) if off else ''), ' %02d:%02d' % (z.hour, z.minute),
             '%s %d %s' % (DAYS[z.weekday()], z.day, z.strftime('%b')),
             'TZ ' + offs(tz), ' %02d:%02d' % (local.hour, local.minute),
-            'same time' if d == 0 else ' %s h' % offs(d),
-            city + ('   DST %s h in summer' % offs(dst) if dst else '')]
+            'same time' if d == 0 else ' %s h' % offs(d), line]
 
 
-def nearest(tz):
-    best = min(abs(z[0] - tz) for z in ZONES)
-    return 1 + next(i for i, z in enumerate(ZONES) if abs(z[0] - tz) == best)
+def nearest(tz, local):
+    ut = local - timedelta(hours=tz)
+    ds = [abs(now_offset(i, ut) - tz) + (now_offset(i, ut) - ZONES[i - 1][0]) / 100 for i in range(1, len(ZONES) + 1)]
+    return 1 + ds.index(min(ds))
 
 
 c47sim_atext = type(c47sim.load([Z.PROG])).atext
@@ -93,7 +102,7 @@ def main():
                       (14, datetime(2026, 6, 30, 12, 0)), (-9.75, datetime(2026, 7, 4, 4, 4))):
         c, texts = run(keys + [Z.END], tz=tz, local=local)
         t = tz or 0
-        want = [expect(i, t, local) for i in walk(nearest(t), keys)]
+        want = [expect(i, t, local) for i in walk(nearest(t, local), keys)]
         hs = headers(texts)
         check(len(hs) == len(want), 'TZ %s: %d redraws, %d wanted' % (tz, len(hs), len(want)))
         for a, b in zip(hs, want):
@@ -103,10 +112,30 @@ def main():
         check(set(shots[n + 1]) == set(shots[2 * n + 1]), 'TZ %s: around west, the same screen' % tz)
         check(str(c.reg.get('TZ')) == str(D(str(tz)) if tz is not None else D(0)), 'TZ kept: %s' % c.reg.get('TZ'))
 
-    # the user's stack kept, R20-R49 cleared, GRMOD 0 and GRFNT 20 at the end
+    # DST: every stop half an hour before and after each transition of each rule city, 2026-2030
+    sys.path.insert(0, os.path.join(ROOT, 'tools'))
+    from make_zones import transitions
+    seen = set()
+    for z in ZONES:
+        if not z[7] or z[7] in seen and z[6] != 'Australia/Lord_Howe':
+            continue
+        seen.add(z[7])
+        for y in (2026, 2027, 2030):
+            for u, on in transitions(z[6], y):
+                for dm in (-30, 30):
+                    utc = (u + timedelta(minutes=dm)).replace(tzinfo=None)
+                    local = utc + timedelta(hours=1.5)                # TZ 1.5: a clock that has no DST
+                    i0 = ZONES.index(z) + 1
+                    k = [Z.EAST6] * ((i0 - nearest(1.5, local)) % n)
+                    c, texts = run(k + [Z.END], tz=1.5, local=local)
+                    hs = headers(texts)
+                    check(hs and hs[-1] == expect(i0, 1.5, local), '%s %s %+d min: %s / %s' % (
+                        z[2], u, dm, hs[-1] if hs else None, expect(i0, 1.5, local)))
+
+    # the user's stack kept, R20-R71 cleared, GRMOD 0 and GRFNT 20 at the end
     c, texts = run([Z.EAST6, Z.END], tz=3, stack=(1, 2, 3, 4))
     check([int(v) for v in c.s[:4]] == [1, 2, 3, 4], 'stack: %s' % c.s[:4])
-    left = [k for k, v in c.reg.items() if k.isdigit() and 20 <= int(k) <= 49 and v not in (0, '', D(0))]
+    left = [k for k, v in c.reg.items() if k.isdigit() and 20 <= int(k) <= 71 and v not in (0, '', D(0))]
     check(not left, 'registers left: %s' % left)
     check(getattr(c, 'grmod', 0) == 0 and getattr(c, 'grfnt', 20) == 20, 'GRMOD 0, GRFNT 20 at the end')
     print('%d stops (tzdata %s), ' % (n, TZDATA) + ('ALL OK' if not FAIL else '%d FAILED' % len(FAIL)))
