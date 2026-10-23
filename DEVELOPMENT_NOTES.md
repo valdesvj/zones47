@@ -71,6 +71,15 @@
 - 2 012 steps, about 12 KB, 7 IF and 7 DO (the original DM42's limit: 10 each). Start 13 200 steps, a move 915.
 - docs/ZONE47_tour.gif starts in Colombia (TZ -5) and steps to Medellin before going round.
 
+## Oct 23, 2026 - faster start
+
+- Profiled by label in the simulator: of the 13 200 steps of the start, 8 300 were LBL :NEAR: (the home stop:
+  DST worked out for the first city of all 38 stops), 3 400 the map. Now a stop more than 1.5 h from TZ (by its
+  standard offset) is only read (LBL :RECX:, no city, no DST): its distance is that of its standard offset (DST
+  adds 1 h at most, so it cannot be the nearest); the others as before (LBL :NEAR2:). Of two as near: the first
+  (X≤Y?), as before. Start 13 200 -> 6 326 steps (about 1.1 s at Almanac 47's 0.17 ms a step), a move 917,
+  a city 473.
+
 ## To do
 
 1. Run on Victor's C47 (convert build/ZONE47.txt with rejig).
