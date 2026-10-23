@@ -93,3 +93,46 @@ Victor Valdes, GNU GPL v3.0 or later (`LICENSE`, the same as Almanac 47; `NOTICE
 AI, used responsibly: see `AI_ASSISTANCE.md`. Not an official time source.
 Time zones: the IANA tz database (https://www.iana.org/time-zones), public domain. Map: global-land-mask
 (GLOBE, NOAA). Fonts: the C43/C47 firmware. SwissMicros, C47, R47 and DM42 are trademarks of their owners.
+
+# Load 47 — load line zones (branch `loadlines`)
+
+`LOAD47` uses the same map to show the **load line zones, areas and seasonal periods** of the International
+Convention on Load Lines 1966 (IMO), **Annex II**, for the date: each sea cell is drawn in the zone it is in
+on that day, so the seasonal areas change as you move the date.
+
+![LOAD47 in April](docs/LOAD47_apr.png)
+
+- **Patterns**: tropical a single dot, winter two dots on a diagonal, summer nothing; land the full dot.
+- **Cursor** (8 4 6 2): the cell's centre (`19.5N 63E`), its zone on the date and the area
+  (`TROPICAL - Arabian Sea, seasonal tropical`), and the area's seasons (`Tropical 1 Sep-31 May, else Summer`).
+- **Date**: the calculator's date; 7 and 9 move it 15 days back or on, 1 goes back to today.
+- **0** ends, your stack and LASTx as they were.
+
+| Key | |
+|---|---|
+| 8 4 6 2 | the cursor, one 3° cell (around at the edges) |
+| 7 / 9 | the date 15 days back / on |
+| 1 | the clock's date again |
+| 0 | the end |
+
+**Sources.** Annex II regulations 46 and 48-52 as written in the 1966 Convention (reproduced in the US Load
+Line Regulations, 46 CFR 42.30-5 to 42.30-35), and regulation 47, the Southern Winter Seasonal Zone, as
+replaced by IMO resolution **MSC.329(90)** (in force 1 January 2014). The named places (Cape Tres Puntas,
+Cape Grim, Cape Torinana, Wakkanai, Santos, Port Darwin, Hong Kong, Sual...) are in `tools/make_loadlines.py`
+with the coordinates used.
+
+**For ships over 100 m.** The areas that apply only to ships of 100 m and under (the Winter North Atlantic load
+line, the Baltic, the Black Sea north of 44N, the western Mediterranean, the north of the Sea of Japan, the US
+east coast) are not drawn yet; the North Atlantic Winter Seasonal Area uses its over-100 m season
+(16 Dec - 15 Feb).
+
+**Indicative only.** Each 3° cell takes the area of its centre, and coasts are followed only as closely as
+3° allows. The official boundaries are those of Annex II and its chart; check them for any loading decision.
+
+    python3 tools/make_loadlines.py   # python/loadzones.py: the areas and their cells (16 areas, 89 rectangles)
+    python3 tools/build_load47.py     # programs/, build/LOAD47.txt
+    python3 tests/test_load47.py      # every cell on every season change, the cursor texts of every area
+    python3 python/load47sim.py       # docs/LOAD47_*.png
+
+Size: 1 693 steps, about 9 KB; no IF, 4 DO. The start draws the map and the zones in about 26 000 steps
+(simulator), a cursor move about 4 500, a new date about 30 000.
