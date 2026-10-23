@@ -52,6 +52,25 @@
 - docs/ZONE47_tour.gif (tools/make_gif.py, Pillow): key 5 through every stop. LICENSE copied from Almanac 47
   (the same GPL-3.0 text, its http links), AI_ASSISTANCE.md in Almanac 47's form.
 
+## Oct 23, 2026 - the cities of every stop (Victor: "the user will not miss his capital"; Medellin)
+
+- tools/make_zones.py reads zone.tab (a line per country, its main zone first) instead of zone1970.tab: one
+  city per country and DST rule in each stop (Antarctica left out), 311 cities, the PREFER city first and the
+  others by name; EXTRA cities not in tzdata after their zone's city (Medellin after Bogota, America/Bogota).
+- DST rules per city: 17. The rule finder also tries the day of a change 1-3 days off with the hour moved by
+  24 h (Chile: the first Saturday at 24:00; Israel: the 4th Thursday at 26:00 = the Friday before the last
+  Sunday; Nuuk: the last Sunday at -1:00). A city whose changes are not one a year in each direction follows
+  no rule: "irregular", standard time shown with "DST varies" (Casablanca, El Aaiun: Ramadan).
+- The stop label stores its cities in R72-R74 (texts of at most 196 characters, "/" between the entries
+  "rCCname": r the rule letter of R81, CC the country) and their numbers R75-R77. LBL :CITY: takes the R80-th
+  out (αPOS "/", αSL, αLEFT). Keys 8 / 2: the city before / after. The rules LBL 41-57; the DST amount in the
+  start code (+ 20000 x DST). Bug found by the tests: the decode pushed numbers before the rule's four values
+  were stored; now stored first.
+- Home stop: the smaller of |standard - TZ| and |offset now - TZ| + 0.01 of its first city (TZ -5 in October:
+  the -5 stop, not Chicago on summer time).
+- 2 012 steps, about 12 KB, 7 IF and 7 DO (the original DM42's limit: 10 each). Start 13 200 steps, a move 915.
+- docs/ZONE47_tour.gif starts in Colombia (TZ -5) and steps to Medellin before going round.
+
 ## To do
 
 1. Run on Victor's C47 (convert build/ZONE47.txt with rejig).

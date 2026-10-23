@@ -17,8 +17,12 @@ page of a Garmin watch, without highlighting countries.
 - **Line 1**: the offset in force now, the local time and date there (weekday, day, month), **daylight
   saving included**.
 - **Line 2**: your clock (`TZ`), its time, and the difference.
-- **Under the map**: the city of that stop and, if it has daylight saving, whether it is on now:
-  `New York   summer time, DST +1 h` or `Sydney   winter time, DST +1 h`.
+- **Cities**: every country of the offset (311 cities in all, from tzdata's `zone.tab`: one per country and
+  DST rule, so the US has New York, Chicago... and Colombia has Bogota, plus Medellin). Keys 8 / 2 step
+  through them; each city has its own daylight saving, so the time shown is that city's.
+- **Under the map**: the city, its country, its place in the list and its DST now, e.g.
+  `Medellin CO  4/16`, `New York US  1/16  summer +1 h`, `Sydney AU  1/7  winter, DST +1 h`,
+  `Casablanca MA  8/26  DST varies` (its changes follow Ramadan: no fixed rule, standard time shown).
 - A triangle marks the column of your own zone (the stop nearest to `TZ` now). The time updates every
   minute, also across a DST change.
 
@@ -26,10 +30,9 @@ page of a Garmin watch, without highlighting countries.
 
 Each stop's city has its DST rule from the IANA tz database, found by `tools/make_zones.py` from the real
 transitions of 2026-2035 and checked to follow one rule: the n-th (or last) weekday of a month at an hour of
-standard time. Nine rules cover the 16 cities with DST (US/Canada, London, Paris, Azores, Cairo, Australia,
-Lord Howe, New Zealand, Chatham). ZONE47 computes the start and end of the current year from the date and
-adds the DST when it is on, northern or southern hemisphere. The DST shown is the city's: other places on the
-same standard offset may not follow it (Arizona, Brazil, most of Africa).
+standard time (the hour may run past midnight: Chile changes on the Saturday at 24:00, Israel on the Friday
+before the last Sunday). 17 rules cover all the cities with DST. ZONE47 computes the start and end of the
+current year from the date and adds the DST when it is on, northern or southern hemisphere.
 
 ## Keys
 
@@ -37,6 +40,7 @@ same standard offset may not follow it (Arizona, Brazil, most of Africa).
 |---|---|
 | 4 | the stop west (a smaller offset) |
 | 5 | the stop east (6 works too) |
+| 8 / 2 | the city before / after in the stop |
 | 0 | the end: the screen cleared, your stack and LASTx as they were |
 
 At the ends it goes around: east of +14 is −12, west of −12 is +14.
@@ -77,6 +81,8 @@ The stops come from the computer's tz database (on Linux `/usr/share/zoneinfo`, 
 | `python/zone47sim.py` | runs ZONE47 in the simulator, writes `docs/*.png` |
 | `tests/test_zone47.py` | the tests |
 
+Size: 2 012 steps, about 12 KB; 7 IF and 7 DO, within the original DM42's limit of 10 each, so it should also
+run on a DM42 with the C47 firmware (not tried; Almanac 47's DM42 builds reach 13.5 KB).
 Written with the C47 STRUCT commands (IF / ELSE / ENDIF, DO / WHILE / ENDDO).
 Calculators: C47 / R47 with STRUCT, ATEXT and GRFNT (firmware 00.109.05.00a0.ALPHA or later, as Elements 47).
 Not yet run on a real C47.

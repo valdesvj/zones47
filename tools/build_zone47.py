@@ -192,13 +192,18 @@ def num(v):
     return ('%.2f' % v).rstrip('0').rstrip('.') if v != int(v) else str(int(v))
 
 
+MAXSTR = 196            # the longest text the C47 keeps (Elements 47, tests/calc/LTEST.txt)
+LETTERS = '-ABCDEFGHIJKLMNOPQRSTUVWXYZ*'      # the rule letters (R81 in ZONE47): - none, * irregular
+
+
 def rules():
-    """The DST rules of the stops, each once, in order: r = 1, 2 ... (LBL 40 + r)."""
+    """The DST rules of the cities, each once, in order: r = 1, 2 ... (LBL 40 + r, letter LETTERS[r])."""
     from zones import ZONES
     out = []
     for z in ZONES:
-        if z[7] and z[7] not in out:
-            out.append(z[7])
+        for c in z[2]:
+            if c[4] and c[4] != 'irregular' and c[4] not in out:
+                out.append(c[4])
     return out
 
 
@@ -207,21 +212,49 @@ def code(t):
     return 100 * t[0] + 10 * t[1] + t[2]
 
 
+def entries(cities):
+    """The city entries of a stop: rule letter, country code (2), name."""
+    rs = rules()
+    out = []
+    for nm, cc, tz, dst, r in cities:
+        let = '*' if r == 'irregular' else LETTERS[rs.index(r) + 1] if r else '-'
+        out.append(let + (cc or '  ')[:2] + nm)
+    return out
+
+
+def parts(ents):
+    """The entries joined by "/" in at most 3 texts of MAXSTR characters, and the number of entries in each."""
+    out, cur = [], []
+    for e in ents:
+        if cur and len('/'.join(cur + [e])) > MAXSTR:
+            out.append(cur); cur = []
+        cur.append(e)
+    out.append(cur)
+    if len(out) > 3:
+        raise SystemExit('a stop needs %d texts: more than R72-R74' % len(out))
+    return out
+
+
 def stop_steps():
-    """The stops (python/zones.py): LBL nn, the city, 100r + 10 DST (r the rule, 0 none), the column, the
-    offset, RTN; then the rules LBL 40 + r: the end hour, the end code, the start hour, the start code, RTN."""
+    """The stops (python/zones.py): LBL nn, the city texts STO 72-74 and the numbers STO 75-77, the column,
+    the offset, RTN; then the rules LBL 40 + r: the end hour, the end code, the start hour, the start code +
+    20000 x DST, RTN."""
     from zones import ZONES
     rs = rules()
-    if len(ZONES) >= 40 or len(rs) > 9:
-        raise SystemExit('%d stops (LBL 01-39) and %d rules (LBL 41-49): more than the labels kept for them'
-                         % (len(ZONES), len(rs)))
+    if len(ZONES) >= 40 or len(rs) > 26:
+        raise SystemExit('%d stops (LBL 01-39) and %d rules (LBL 41-66)' % (len(ZONES), len(rs)))
     out = []
-    for i, z in enumerate(ZONES, 1):
-        off, col, city, dst, rule = z[0], z[1], z[2], z[3], z[7]
-        r = rs.index(rule) + 1 if rule else 0
-        out += ['LBL %02d' % i, '"%s"' % city, num(100 * r + 10 * dst if r else 0), str(col), num(off), 'RTN']
+    for i, (off, col, cities) in enumerate(ZONES, 1):
+        ps = parts(entries(cities))
+        out.append('LBL %02d' % i)
+        for k, p in enumerate(ps):
+            out += ['"%s"' % '/'.join(p), 'STO %d' % (72 + k)]
+        n1 = len(ps[0]); n2 = n1 + (len(ps[1]) if len(ps) > 1 else 0)
+        out += [str(n1), 'STO 75', str(n2), 'STO 76', str(len(cities)), 'STO 77', str(col), num(off), 'RTN']
     for r, (st, en) in enumerate(rs, 1):
-        out += ['LBL %02d' % (40 + r), num(en[3]), str(code(en)), num(st[3]), str(code(st)), 'RTN']
+        dst = next(c[3] for z in ZONES for c in z[2] if c[4] == (st, en))
+        out += ['LBL %02d' % (40 + r), num(en[3]), str(code(en)), num(st[3]),
+                str(code(st) + int(round(20000 * dst))), 'RTN']
     return out
 
 

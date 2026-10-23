@@ -5,7 +5,8 @@ REM standard offset of the IANA tz database (tzdata, zone1970.tab; tools/make_zo
 REM -12 (at sea) to +14, with a city and its daylight saving rule (DST: worked out for the date, added when on).
 REM The column of the stop is highlighted (XOR); the header shows its offset, time and date, and the
 REM calculator's clock (TZ) with the difference; under the map the city and its DST.
-REM Keys: 4 the stop west (a smaller offset), 5 the stop east (6 too), around at the ends; 0 the end.
+REM Keys: 4 the stop west (a smaller offset), 5 the stop east (6 too), around at the ends; 8 2 the city
+REM before / after in the stop (every country of the offset, from zone.tab, each with its DST); 0 the end.
 REM The time is updated every minute while the program waits for a key.
 REM TZ: the global variable "TZ" = the offset of the calculator's clock from UT in hours (4 for UT+4, -5.5
 REM for UT-5:30; the clock's offset as it is, summer time included), as MOON47 in Almanac 47: 0 STO+ "TZ"
@@ -14,7 +15,7 @@ REM starts on the stop nearest to TZ, its column marked by a triangle.
 REM Screen 400 x 240, row 0 = bottom (as in Almanac 47). ATEXT in GRFNT 21, the small text in GRFNT 10.
 REM GRMOD and GRFNT take X (rejig writes "GRMOD r" as GRMOD and the number r: Almanac 47).
 REM The user's stack and LASTx are kept (local registers R.00-R.08, as ELEM47 v1.2.0); at the end the
-REM work registers R20-R71 are cleared (R-CLR), the other registers are the user's.
+REM work registers R20-R84 are cleared (R-CLR), the other registers are the user's.
 REM Map: dot column j (0-119) at x 20 + 3j and 21 + 3j, dot row i (0 the top) at rows 194 - 3i, 193 - 3i.
 REM Map column c (0-23: UTC-11 ... UTC+-12) at x 19 + 15c to 33 + 15c, rows 59-196.
 REM The stops: LBL 01-nn (written by the build), each pushes the city (text), DST, the column, the offset.
@@ -73,9 +74,18 @@ WHILE
   1
   X>Y?
   XEQ :EAST:
+  REM 8 (53) the city before, 2 (73) the city after, in the stop
+  RCL 33
+  53
+  X=Y?
+  XEQ :CUP:
+  RCL 33
+  73
+  X=Y?
+  XEQ :CDOWN:
 ENDDO
-REM ---- 0: the end: R20-R71 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
-20.52
+REM ---- 0: the end: R20-R84 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
+20.65
 R-CLR
 0
 GRMOD
@@ -121,39 +131,119 @@ MOD
 STO 32
 XEQ :MOVED:
 RTN
-REM ---- LBL :REC: the record of the stop R32 (XEQ IND 32): R28 the offset, R29 the column, R49 DST,
-REM R48 the city ----
+REM ---- LBL :REC: the record of the stop R32 (XEQ IND 32): R28 the offset, R29 the column; the label
+REM stores its cities in R72-R74 (texts of up to 196 characters) and the numbers R75 (the cities in R72),
+REM R76 (in R72 and R73), R77 (all). Then its first city (R80 = 1) ----
 LBL :REC:
 XEQ IND 32
 STO 28
 R↓
 STO 29
-R↓
-STO 49
-R↓
-STO 48
-REM the DST field 100r + 10 DST: R50 the rule r (0: none), R49 the DST in hours
-RCL 49
-100
-÷
-IP
+1
+STO 80
+REM ---- LBL :CITY: the city R80 of the stop: its entry "rCCname" (r the DST rule letter, CC the country)
+REM taken out of R72, R73 or R74 (R82 its place there) into R78 with the "/" between the entries:
+REM R50 the rule (the place of r in R81: 0 none, 1-26 LBL 40 + r, 27 irregular), R84 the country, R48 the name ----
+LBL :CITY:
+RCL 80
+STO 82
+RCL 72
+STO 78
+RCL 75
+RCL 80
+X>Y?
+XEQ :PART2:
+RCL 76
+RCL 80
+X>Y?
+XEQ :PART3:
+"/"
+x→α 78
+REM the entries before it off: each time the text up to its first "/" off (αSL)
+DO
+  RCL 82
+  1
+  X<Y?
+WHILE
+  "/"
+  αPOS 78
+  1
+  +
+  αSL 78
+  1
+  STO- 82
+ENDDO
+"/"
+αPOS 78
+αLEFT 78
+STO 78
+1
+αLEFT 78
+αPOS 81
 STO 50
-RCL 49
-100
-MOD
-10
-÷
-STO 49
+1
+αSL 78
+2
+αLEFT 78
+STO 84
+2
+αSL 78
+RCL 78
+STO 48
 RTN
-REM ---- LBL :NOWOFF: R59 = the offset of the stop now: R28, + R49 when its rule R50 has DST on at the UT
-REM R31. The rule (LBL 40 + r) pushes the end hour, the end code, the start hour, the start code; a code
+REM LBL :PART2:, LBL :PART3: the city is in R73 (place - R75) or R74 (place - R76)
+LBL :PART2:
+RCL 73
+STO 78
+RCL 80
+RCL 75
+-
+STO 82
+RTN
+LBL :PART3:
+RCL 74
+STO 78
+RCL 80
+RCL 76
+-
+STO 82
+RTN
+REM ---- LBL :CUP: the city before (1 -> the last), LBL :CDOWN: the city after (the last -> 1); the header ----
+LBL :CUP:
+RCL 80
+1
+-
+X=0?
+RCL 77
+STO 80
+XEQ :CITY:
+XEQ :HEAD:
+RTN
+LBL :CDOWN:
+RCL 80
+RCL 77
+MOD
+1
++
+STO 80
+XEQ :CITY:
+XEQ :HEAD:
+RTN
+REM ---- LBL :NOWOFF: R59 = the offset of the city now: R28, + R49 when its rule R50 has DST on at the UT
+REM R31 (rule 0 or 27: none, R49 = 0). The rule (LBL 40 + r) pushes the end hour, the end code, the start
+REM hour, the start code + 20000 x DST (h); a code
 REM is 100 month + 10 n + weekday (n 1-4, 5 the last; weekday 0 Sunday), the hours in standard time.
 REM R53 the start, R54 the end (JDs in the stop's standard time) in the year of R57 = R31 + R28/24 (the stop's standard time now) ----
 LBL :NOWOFF:
 RCL 28
 STO 59
+0
+STO 49
 RCL 50
 X=0?
+RTN
+27
+X=Y?
 RTN
 RCL 28
 24
@@ -174,6 +264,18 @@ R↓
 STO 63
 R↓
 STO 64
+REM the start code + 20000 DST: R49 the DST in hours
+RCL 56
+10000
+÷
+IP
+2
+÷
+STO 49
+RCL 56
+10000
+MOD
+STO 56
 XEQ :TRANS:
 STO 53
 RCL 63
@@ -495,26 +597,45 @@ ATEXT Z
 GRMOD
 RCL 48
 STO 34
+" "
+x→α 34
+RCL 84
+x→α 34
+"  "
+x→α 34
+RCL 80
+αIP 34
+"/"
+x→α 34
+RCL 77
+αIP 34
 RCL 49
 X≠0?
 XEQ :DST:
+RCL 50
+27
+X=Y?
+XEQ :DSTVAR:
 RCL 34
 16
 14
 ATEXT Z
 RTN
-REM LBL :DST: "   summer time, DST +1 h" (DST on now) or "   winter time, DST +1 h" appended to R34
+REM LBL :DSTVAR: a city whose DST follows no rule (Casablanca): standard time shown
+LBL :DSTVAR:
+"  DST varies"
+x→α 34
+RTN
+REM LBL :DST: "  summer +1 h" (DST on now) or "  winter, DST +1 h" appended to R34
 LBL :DST:
 RCL 59
 RCL 28
 X=Y?
 IF
-  "   winter"
+  "  winter, DST "
 ELSE
-  "   summer"
+  "  summer "
 ENDIF
-x→α 34
-" time, DST "
 x→α 34
 RCL 49
 XEQ :OFFS:
@@ -744,6 +865,9 @@ STO 24
 STO 26
 "SunMonTueWedThuFriSatJanFebMarAprMayJunJulAugSepOctNovDec"
 STO 42
+REM the DST rule letters of the city entries: - none, A-Z the rules 1-26, * none that follows a rule
+"-ABCDEFGHIJKLMNOPQRSTUVWXYZ*"
+STO 81
 -1
 STO 36
 CLLCD
@@ -769,7 +893,7 @@ LBL :ASKTZ:
 "TZ=CLOCK-UT h, R/S"
 INPUT "TZ"
 RTN
-REM LBL :NEAR: every stop, nn down to 1: |offset - TZ| in R38, the nearest so far in R39, its stop in R37
+REM LBL :NEAR: every stop (its first city), nn down to 1: the distance to TZ in R38, the nearest so far in R39, its stop in R37
 LBL :NEAR:
 RCL 43
 STO 27
@@ -780,17 +904,26 @@ DO
   STO 32
   XEQ :REC:
   XEQ :NOWOFF:
+  REM the distance: |offset now - TZ| + 0.01 (DST on) or |standard offset - TZ|, the smaller: of two as
+  REM near, the one on standard time (TZ 3 in October: Moscow, not Cairo; TZ -5: Bogota's stop, not Chicago)
   RCL 59
   RCL 30
   -
   ABS
-  REM + DST on / 100: of two as near, the one on standard time (TZ 3 in October: Moscow, not Cairo)
   RCL 59
   RCL 28
   -
   100
   ÷
   +
+  STO 38
+  RCL 28
+  RCL 30
+  -
+  ABS
+  RCL 38
+  X>Y?
+  X<>Y
   STO 38
   RCL 39
   X≥Y?
@@ -846,7 +979,7 @@ ENDDO
 10
 GRFNT
 REM ==== LABELS (written by tools/build_zone47.py: the zone numbers, string row x ATEXT Z)
-"4: WEST    5: EAST    0: END    TZ = clock - UT"
+"4: WEST   5: EAST   8 2: CITY   0: END   TZ = clock - UT"
 4
 14
 ATEXT Z
@@ -885,7 +1018,7 @@ AGRAPH 22
 3
 STO+ 25
 RTN
-REM ==== STOPS (written by tools/build_zone47.py from python/zones.py: LBL nn, the city, 100r + 10 DST,
-REM the column, the offset, RTN; then the DST rules LBL 40 + r: the end hour, end code, start hour,
-REM start code, RTN)
+REM ==== STOPS (written by tools/build_zone47.py from python/zones.py: LBL nn, the city texts STO 72-74,
+REM the numbers STO 75-77, the column, the offset, RTN; then the DST rules LBL 40 + r: the end hour, end code,
+REM start hour, start code + 20000 DST, RTN)
 END
