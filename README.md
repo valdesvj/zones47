@@ -66,6 +66,7 @@ The stops come from the computer's tz database (on Linux `/usr/share/zoneinfo`, 
     python3 tools/make_zones.py      # python/zones.py from zone1970.tab, prints the stops and the tzdata version
     python3 tools/build_zone47.py    # programs/ and build/ZONE47.txt with the new stops
     python3 tests/test_zone47.py     # every stop and every DST change checked against Python's zoneinfo
+    python3 tests/test_forum.py      # the .p47u files: the same steps as build/, no REM made of a comment
     python3 tools/make_gif.py        # docs/ZONE47_tour.gif
 
 ## Build and files
@@ -75,6 +76,7 @@ The stops come from the computer's tz database (on Linux `/usr/share/zoneinfo`, 
 | `programs_rem/ZONE47.txt` | the commented source (STRUCT, named labels) — edit this one |
 | `programs/ZONE47.txt`, `build/ZONE47.txt` | the calculator program (to convert with rejig) |
 | `listings/` | numbered steps with comments, the local labels |
+| `build/forum/ZONE47.p47u`, `LOAD47.p47u` | the same programs as commented rejig sources: an `@` header (Index, Author, Version, Source, Tested, Input, Output), the steps indented, the comments after `;` (rejig drops them: no memory); written by both builds (`tools/build_forum.py`), checked by `tests/test_forum.py` |
 | `python/worldmap.py` | the dot map (`tools/make_map.py`, land/sea from the GLOBE 1 km data, NOAA) |
 | `python/zones.py` | the stops and their DST rules (`tools/make_zones.py`, from tzdata) |
 | `python/c47sim.py`, `stdfont.py`, `tinyfont.py` | the C47 simulator and fonts, from Almanac 47 |

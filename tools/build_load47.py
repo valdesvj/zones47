@@ -7,7 +7,8 @@ ZONE47 (named labels, STRUCT numbers, listings; its functions). The build fills:
                    seasons STO 74 (0 summer, 1 tropical, 2 winter), up to two seasons (start MMDD, end MMDD,
                    zone) STO 75-80 (0 when none), XEQ :ZNOW:, then each rectangle 10000000 c0 + 10000 c1 +
                    (see above)
-Files: programs/LOAD47.txt, build/LOAD47.txt, listings/LOAD47_doc.txt, listings/LOAD47_labels.txt.
+Files: programs/LOAD47.txt, build/LOAD47.txt, listings/LOAD47_doc.txt, listings/LOAD47_labels.txt,
+  build/forum/LOAD47.p47u (the rejig source with the comments after ";", tools/build_forum.py).
   python3 tools/make_loadlines.py && python3 tools/build_load47.py"""
 import os, re, sys
 
@@ -116,3 +117,6 @@ if __name__ == '__main__':
     print('%s %5d steps, %2d local labels, longest text %d, about %d bytes (.p47, estimated); IF %d, DO %d' % (
         NAME, len(st), sum(1 for s in st if re.match(r'LBL \d\d', s)), max(len(s) - 2 for s in txt),
         B.estimate(st), sum(1 for s in st if s.startswith('IF ')), sum(1 for s in st if s.startswith('DO '))))
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import build_forum
+    build_forum.build(NAME)                                   # build/forum/LOAD47.p47u, the commented rejig source

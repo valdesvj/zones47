@@ -15,6 +15,7 @@ Files written:
   programs/ZONE47.txt        the program without REM lines, numeric labels (to convert with rejig)
   build/ZONE47.txt           the calculator file (the same steps)
   listings/ZONE47_doc.txt    numbered steps with the comments and the label names
+  build/forum/ZONE47.p47u    the rejig source with the comments after ';' (tools/build_forum.py)
   listings/ZONE47_labels.txt the local labels: name, number, what it does
 The functions structures(), resolve(), estimate() come from Elements 47 (tools/build_elem47.py).
   python3 tools/build_zone47.py"""
@@ -327,3 +328,6 @@ if __name__ == '__main__':
     txt = [s for s in st if s.startswith('"')]
     print('%s %5d steps, %2d local labels, longest text %d, about %d bytes (.p47, estimated)' % (
         NAME, len(st), sum(1 for s in st if re.match(r'LBL \d\d', s)), max(len(s) - 2 for s in txt), estimate(st)))
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import build_forum
+    build_forum.build(NAME)                                   # build/forum/ZONE47.p47u, the commented rejig source
