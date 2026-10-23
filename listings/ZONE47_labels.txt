@@ -1,0 +1,40 @@
+ZONE47 local labels: name (programs_rem/ZONE47.txt), number (build/ZONE47.txt), what it does
+
+:WEST:     00  one stop west: the highlight off, the stop - 1 (0 -> nn), the new stop
+:MOVED:    39  the new stop: its record, the highlight on, the header
+:EAST:     40  one stop east: the stop + 1 (nn + 1 -> 1)
+:REC:      58  the record of the stop R32 (XEQ IND 32): R28 the offset, R29 the column; the label
+:CITY:     59  the city R80 of the stop: its entry "rCCname" (r the DST rule letter, CC the country)
+:PART2:    60  , LBL :PART3: the city is in R73 (place - R75) or R74 (place - R76)
+:PART3:    61  
+:CUP:      62  the city before (1 -> the last), LBL :CDOWN: the city after (the last -> 1); the header
+:CDOWN:    63  
+:NOWOFF:   64  R59 = the offset of the city now: R28, + R49 when its rule R50 has DST on at the UT
+:DSTON:    65  DST on: R59 = R28 + R49
+:TRANS:    66  the JD (standard time) of the code R56 at the hour R58 in the year R62:
+:JDN:      67  the day number of the 1st of the month X (13 = January of the next year) of the year R62:
+:BAND:     68  the column R29 inverted (XOR): 15 pixel columns of 138 rows, 59-196,
+:R64:      69  15 columns of 64 rows from Y (row), X (column)
+:TICK:     70  the clock (LBL :CLOCK:); a new minute: the header
+:CLOCK:    71  R31 = the JD of UT now (the clock - TZ hours), also in X
+:HEAD:     72  the header (rows 197 up cleared): line 1 the zone, its time and date; line 2 TZ, the
+:DSTVAR:   73  a city whose DST follows no rule (Casablanca): standard time shown
+:DST:      74  "  summer +1 h" (DST on now) or "  winter, DST +1 h" appended to R34
+:SAME:     75  the text "same time"; LBL :DIFF: the difference R39 and " h"
+:DIFF:     76  
+:OFFS:     77  the offset X appended to R34: the sign, the hours, ":mm" when it has minutes
+:TWO:      78  X (0-99) appended to R34 in two digits
+:HHMM:     79  the time of the JD in X appended to R34 as hh:mm
+:DATE:     80  the date of the JD in X in R34: "Fri 23 Oct" (LBL :CAL:; the weekday N + 1 mod 7,
+:CAL:      81  the calendar date of the JD in X (Fliegel and Van Flandern): R44 the day number
+:NAME3:    82  3 letters from position X of R42 (the days at 0, the months at 21 + 3 (month - 1)):
+:INIT:     83  the start: TZ, the patterns, the map, the scale, the keys, the zone of TZ
+:ASKTZ:    84  TZ asked: hours from UT of the clock, DST included (3 for UT+3, 0 for UT)
+:RECX:     85  the stop's label only: R28 the offset, R29 the column (the cities stored, none taken out)
+:NEAR:     86  every stop (its first city), nn down to 1: the distance to TZ in R38, the nearest so far i
+:NEAR2:    87  the distance of a stop near TZ, from its first city
+:BEST:     88  this stop is the nearest so far
+:HOME:     89  a triangle under the column of the home stop (R29), rows 38-40, centre x 26 + 15c
+:SCALE:    90  the ticks between the zones (x 19 + 15m, rows 56-58), the zone numbers (even zones,
+:MAP:      91  the dot map, one dot column a step group: the bands of rows 151, 106, 61 up (Z, Y, X),
+:COL:      92  one dot column: each band (SINT: the pattern as a short integer for AGRAPH) drawn twice

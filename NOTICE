@@ -1,0 +1,33 @@
+Zones 47 - World time zones for the C47
+Copyright (C) 2026 Victor Valdes <valdes.vj@gmail.com>
+
+This program is free software: you can redistribute it and/or modify it under the terms of
+the GNU General Public License as published by the Free Software Foundation, either version 3
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See the GNU General Public License for more details: the LICENSE file in this folder
+(the same as Almanac 47's), or https://www.gnu.org/licenses/.
+
+This covers everything in this repository: the C47 calculator program (programs/,
+programs_rem/, listings/, build/), the PC tools (python/, tools/), the tests and the
+documentation - with these exceptions and sources:
+  - python/stdfont.py and python/tinyfont.py: glyph data from the C43/C47 firmware's
+    standardFont and tinyFont, (c) the C43/C47 authors, GPL-3.0.
+  - python/c47sim.py comes from Almanac 47 (same author, GPL-3.0).
+  - python/zones.py: from the IANA time zone database (https://www.iana.org/time-zones),
+    public domain, as installed on the computer (tzdata), by tools/make_zones.py.
+  - python/worldmap.py: land and sea from the Python package global-land-mask (GLOBE 1 km
+    data, NOAA), by tools/make_map.py.
+
+Written with the help of AI (Claude by Anthropic, see AI_ASSISTANCE.md).
+I used AI as a cooperative research and drafting tool, but I reviewed, validated, and
+checked every result, and I take full responsibility for this project, its correctness,
+and any mistakes in it.
+
+SwissMicros, C47, R47, DM42, Garmin and Instinct are trademarks of their owners.
+This project is not affiliated with or endorsed by them.
+
+NOT AN OFFICIAL TIME SOURCE. The times depend on the calculator's clock and TZ, and on the tz
+database of the build; time zones and daylight-saving rules change by law. Check official sources.

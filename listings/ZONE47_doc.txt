@@ -1,0 +1,2146 @@
+      ; ZONE47 v0.1.0 - Zones 47: the world time zones on the C47 / R47
+      ; A dot map of the world (3 degrees a dot, 81N to 54S) in 24 columns of 15 degrees, UTC-11 at the left
+      ; to UTC+-12 at the right (the last column: 172.5E to 172.5W). The official time zones: one stop per
+      ; standard offset of the IANA tz database (tzdata, zone1970.tab; tools/make_zones.py -> python/zones.py),
+      ; -12 (at sea) to +14, with a city and its daylight saving rule (DST: worked out for the date, added when on).
+      ; The column of the stop is highlighted (XOR); the header shows its offset, time and date, and the
+      ; calculator's clock (TZ) with the difference; under the map the city and its DST.
+      ; Keys: 4 the stop west (a smaller offset), 5 the stop east (6 too), around at the ends; 8 2 the city
+      ; before / after in the stop (every country of the offset, from zone.tab, each with its DST); 0 the end.
+      ; The time is updated every minute while the program waits for a key.
+      ; TZ: the global variable "TZ" = the offset of the calculator's clock from UT in hours (4 for UT+4, -5.5
+      ; for UT-5:30; the clock's offset as it is, summer time included), as MOON47 in Almanac 47: 0 STO+ "TZ"
+      ; makes it (0) when it is not there; TZ = 0 (new, or a clock on UT): asked with INPUT, R/S keeps it. The cursor
+      ; starts on the stop nearest to TZ, its column marked by a triangle.
+      ; Screen 400 x 240, row 0 = bottom (as in Almanac 47). ATEXT in GRFNT 21, the small text in GRFNT 10.
+      ; GRMOD and GRFNT take X (rejig writes "GRMOD r" as GRMOD and the number r: Almanac 47).
+      ; The user's stack and LASTx are kept (local registers R.00-R.08, as ELEM47 v1.2.0); at the end the
+      ; work registers R20-R84 are cleared (R-CLR), the other registers are the user's.
+      ; Map: dot column j (0-119) at x 20 + 3j and 21 + 3j, dot row i (0 the top) at rows 194 - 3i, 193 - 3i.
+      ; Map column c (0-23: UTC-11 ... UTC+-12) at x 19 + 15c to 33 + 15c, rows 59-196.
+      ; The stops: LBL 01-nn (written by the build), each pushes the city (text), DST, the column, the offset.
+      ; Registers: R20-R22 the three bands of a map column (rows 61, 106, 151 up), R23 64 ones, R24 10 ones,
+      ; R25 the drawing column x, R26 the tick (3 rows), R27 a counter, R30 TZ, R31 the JD of UT now,
+      ; R28 the offset of the stop, R29 its column, R32 the stop (1-nn), R33 the key, R34 the text, R35 the JD
+      ; in the zone, R36 the minute shown, R37 the home stop, R38-R41 work, R42 the day and month names, R43 nn
+      ; (the number of stops), R44-R47 the date, R48 the city, R49 its DST (h), R50 its rule, R53-R58 and
+      ; R63-R71 the DST work, R59 the offset now, R60-R62 day month year.
+      ; Control flow in the C47 STRUCT commands (IF / ELSE / ENDIF, DO / WHILE / ENDDO: the firmware's app
+      ; note AN0007), indented two spaces per level; tools/build_zone47.py checks them and numbers them.
+   1  LBL "ZONE47"
+      ; the user's stack in the local registers (as ELEM47 v1.2.0): X..T, A..D with R↓, then LASTx
+   2  LocR 10
+   3  STO R.00
+   4  R↓
+   5  STO R.01
+   6  R↓
+   7  STO R.02
+   8  R↓
+   9  STO R.03
+  10  R↓
+  11  STO R.04
+  12  R↓
+  13  STO R.05
+  14  R↓
+  15  STO R.06
+  16  R↓
+  17  STO R.07
+  18  R↓
+  19  LASTx
+  20  STO R.08
+  21  XEQ :INIT:    (83)
+      ; ---- keys: 4 west, 5 or 6 east, 0 the end; other keys ignored ----
+  22  DO    (01)
+        ; wait for a key: PAUSE 50, KEY? 33 (true: no key yet), as Almanac 47; the clock read each time
+  23    DO    (02)
+  24      XEQ :TICK:    (70)
+  25      PAUSE 50
+  26      KEY? 33
+  27    WHILE    (02)
+  28    ENDDO    (02)
+  29    RCL 33
+  30    82
+  31    X≠Y?
+  32  WHILE    (01)
+  33    RCL 33
+  34    62
+  35    X=Y?
+  36    XEQ :WEST:    (00)
+        ; 5 (63) or 6 (64): |k - 63.5| = 0.5 for these two keys only
+  37    RCL 33
+  38    63.5
+  39    -
+  40    ABS
+  41    1
+  42    X>Y?
+  43    XEQ :EAST:    (40)
+        ; 8 (53) the city before, 2 (73) the city after, in the stop
+  44    RCL 33
+  45    53
+  46    X=Y?
+  47    XEQ :CUP:    (62)
+  48    RCL 33
+  49    73
+  50    X=Y?
+  51    XEQ :CDOWN:    (63)
+  52  ENDDO    (01)
+      ; ---- 0: the end: R20-R84 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
+  53  20.65
+  54  R-CLR
+  55  0
+  56  GRMOD
+  57  20
+  58  GRFNT
+  59  CLLCD
+  60  RCL R.08
+  61  STO L
+  62  RCL R.07
+  63  RCL R.06
+  64  RCL R.05
+  65  RCL R.04
+  66  RCL R.03
+  67  RCL R.02
+  68  RCL R.01
+  69  RCL R.00
+  70  RTN
+      ; ---- LBL :WEST: one stop west: the highlight off, the stop - 1 (0 -> nn), the new stop ----
+  71  LBL :WEST:    (00)
+  72  XEQ :BAND:    (68)
+  73  RCL 32
+  74  1
+  75  -
+  76  X=0?
+  77  RCL 43
+  78  STO 32
+  79  XEQ :MOVED:    (39)
+  80  RTN
+      ; LBL :MOVED: the new stop: its record, the highlight on, the header
+  81  LBL :MOVED:    (39)
+  82  XEQ :REC:    (58)
+  83  XEQ :BAND:    (68)
+  84  XEQ :HEAD:    (72)
+  85  RTN
+      ; ---- LBL :EAST: one stop east: the stop + 1 (nn + 1 -> 1) ----
+  86  LBL :EAST:    (40)
+  87  XEQ :BAND:    (68)
+  88  RCL 32
+  89  RCL 43
+  90  MOD
+  91  1
+  92  +
+  93  STO 32
+  94  XEQ :MOVED:    (39)
+  95  RTN
+      ; ---- LBL :REC: the record of the stop R32 (XEQ IND 32): R28 the offset, R29 the column; the label
+      ; stores its cities in R72-R74 (texts of up to 196 characters) and the numbers R75 (the cities in R72),
+      ; R76 (in R72 and R73), R77 (all). Then its first city (R80 = 1) ----
+  96  LBL :REC:    (58)
+  97  XEQ :RECX:    (85)
+  98  1
+  99  STO 80
+      ; ---- LBL :CITY: the city R80 of the stop: its entry "rCCname" (r the DST rule letter, CC the country)
+      ; taken out of R72, R73 or R74 (R82 its place there) into R78 with the "/" between the entries:
+      ; R50 the rule (the place of r in R81: 0 none, 1-26 LBL 40 + r, 27 irregular), R84 the country, R48 the name ----
+ 100  LBL :CITY:    (59)
+ 101  RCL 80
+ 102  STO 82
+ 103  RCL 72
+ 104  STO 78
+ 105  RCL 75
+ 106  RCL 80
+ 107  X>Y?
+ 108  XEQ :PART2:    (60)
+ 109  RCL 76
+ 110  RCL 80
+ 111  X>Y?
+ 112  XEQ :PART3:    (61)
+ 113  "/"
+ 114  x→α 78
+      ; the entries before it off: each time the text up to its first "/" off (αSL)
+ 115  DO    (03)
+ 116    RCL 82
+ 117    1
+ 118    X<Y?
+ 119  WHILE    (03)
+ 120    "/"
+ 121    αPOS 78
+ 122    1
+ 123    +
+ 124    αSL 78
+ 125    1
+ 126    STO- 82
+ 127  ENDDO    (03)
+ 128  "/"
+ 129  αPOS 78
+ 130  αLEFT 78
+ 131  STO 78
+ 132  1
+ 133  αLEFT 78
+ 134  αPOS 81
+ 135  STO 50
+ 136  1
+ 137  αSL 78
+ 138  2
+ 139  αLEFT 78
+ 140  STO 84
+ 141  2
+ 142  αSL 78
+ 143  RCL 78
+ 144  STO 48
+ 145  RTN
+      ; LBL :PART2:, LBL :PART3: the city is in R73 (place - R75) or R74 (place - R76)
+ 146  LBL :PART2:    (60)
+ 147  RCL 73
+ 148  STO 78
+ 149  RCL 80
+ 150  RCL 75
+ 151  -
+ 152  STO 82
+ 153  RTN
+ 154  LBL :PART3:    (61)
+ 155  RCL 74
+ 156  STO 78
+ 157  RCL 80
+ 158  RCL 76
+ 159  -
+ 160  STO 82
+ 161  RTN
+      ; ---- LBL :CUP: the city before (1 -> the last), LBL :CDOWN: the city after (the last -> 1); the header ----
+ 162  LBL :CUP:    (62)
+ 163  RCL 80
+ 164  1
+ 165  -
+ 166  X=0?
+ 167  RCL 77
+ 168  STO 80
+ 169  XEQ :CITY:    (59)
+ 170  XEQ :HEAD:    (72)
+ 171  RTN
+ 172  LBL :CDOWN:    (63)
+ 173  RCL 80
+ 174  RCL 77
+ 175  MOD
+ 176  1
+ 177  +
+ 178  STO 80
+ 179  XEQ :CITY:    (59)
+ 180  XEQ :HEAD:    (72)
+ 181  RTN
+      ; ---- LBL :NOWOFF: R59 = the offset of the city now: R28, + R49 when its rule R50 has DST on at the UT
+      ; R31 (rule 0 or 27: none, R49 = 0). The rule (LBL 40 + r) pushes the end hour, the end code, the start
+      ; hour, the start code + 20000 x DST (h); a code
+      ; is 100 month + 10 n + weekday (n 1-4, 5 the last; weekday 0 Sunday), the hours in standard time.
+      ; R53 the start, R54 the end (JDs in the stop's standard time) in the year of R57 = R31 + R28/24 (the stop's standard time now) ----
+ 182  LBL :NOWOFF:    (64)
+ 183  RCL 28
+ 184  STO 59
+ 185  0
+ 186  STO 49
+ 187  RCL 50
+ 188  X=0?
+ 189  RTN
+ 190  27
+ 191  X=Y?
+ 192  RTN
+ 193  RCL 28
+ 194  24
+ 195  ÷
+ 196  RCL 31
+ 197  +
+ 198  STO 57
+ 199  XEQ :CAL:    (81)
+ 200  RCL 50
+ 201  40
+ 202  +
+ 203  STO 56
+ 204  XEQ IND 56
+ 205  STO 56
+ 206  R↓
+ 207  STO 58
+ 208  R↓
+ 209  STO 63
+ 210  R↓
+ 211  STO 64
+      ; the start code + 20000 DST: R49 the DST in hours
+ 212  RCL 56
+ 213  10000
+ 214  ÷
+ 215  IP
+ 216  2
+ 217  ÷
+ 218  STO 49
+ 219  RCL 56
+ 220  10000
+ 221  MOD
+ 222  STO 56
+ 223  XEQ :TRANS:    (66)
+ 224  STO 53
+ 225  RCL 63
+ 226  STO 56
+ 227  RCL 64
+ 228  STO 58
+ 229  XEQ :TRANS:    (66)
+ 230  STO 54
+      ; north (start < end): on from the start to the end; south (the end first): on from the start, or
+      ; before the end
+ 231  RCL 53
+ 232  RCL 54
+ 233  X>Y?
+ 234  IF    (01)
+ 235    RCL 53
+ 236    RCL 57
+ 237    X≥Y?
+ 238    IF    (02)
+ 239      RCL 54
+ 240      RCL 57
+ 241      X<Y?
+ 242      XEQ :DSTON:    (65)
+ 243    ENDIF    (02)
+ 244  ELSE    (01)
+ 245    RCL 53
+ 246    RCL 57
+ 247    X≥Y?
+ 248    XEQ :DSTON:    (65)
+ 249    RCL 54
+ 250    RCL 57
+ 251    X<Y?
+ 252    XEQ :DSTON:    (65)
+ 253  ENDIF    (01)
+ 254  RTN
+      ; LBL :DSTON: DST on: R59 = R28 + R49
+ 255  LBL :DSTON:    (65)
+ 256  RCL 49
+ 257  RCL 28
+ 258  +
+ 259  STO 59
+ 260  RTN
+      ; ---- LBL :TRANS: the JD (standard time) of the code R56 at the hour R58 in the year R62:
+      ; n < 5: the first weekday w of the month from its 1st (R65), + 7 (n - 1); n = 5: the last w back from the
+      ; last day of the month (the 1st of month + 1, - 1) ----
+ 261  LBL :TRANS:    (66)
+ 262  RCL 56
+ 263  10
+ 264  MOD
+ 265  STO 66
+ 266  RCL 56
+ 267  10
+ 268  ÷
+ 269  IP
+ 270  10
+ 271  MOD
+ 272  STO 67
+ 273  RCL 56
+ 274  100
+ 275  ÷
+ 276  IP
+ 277  STO 71
+ 278  5
+ 279  RCL 67
+ 280  X=Y?
+ 281  IF    (03)
+ 282    RCL 71
+ 283    1
+ 284    +
+ 285    XEQ :JDN:    (67)
+ 286    1
+ 287    -
+ 288    STO 65
+ 289    1
+ 290    +
+ 291    7
+ 292    MOD
+ 293    RCL 66
+ 294    -
+ 295    7
+ 296    +
+ 297    7
+ 298    MOD
+ 299    STO- 65
+ 300  ELSE    (03)
+ 301    RCL 71
+ 302    XEQ :JDN:    (67)
+ 303    STO 65
+ 304    RCL 66
+ 305    RCL 65
+ 306    1
+ 307    +
+ 308    7
+ 309    MOD
+ 310    -
+ 311    7
+ 312    +
+ 313    7
+ 314    MOD
+ 315    STO+ 65
+ 316    RCL 67
+ 317    1
+ 318    -
+ 319    7
+ 320    ×
+ 321    STO+ 65
+ 322  ENDIF    (03)
+ 323  RCL 65
+ 324  0.5
+ 325  -
+ 326  RCL 58
+ 327  24
+ 328  ÷
+ 329  +
+ 330  RTN
+      ; ---- LBL :JDN: the day number of the 1st of the month X (13 = January of the next year) of the year R62:
+      ; a = (14 - m) div 12, y = Y + 4800 - a, m' = m + 12a - 3, N = 1 + (153m' + 2) div 5 + 365y + y div 4
+      ; - y div 100 + y div 400 - 32045 (R68 a, R69 y, R70 m') ----
+ 331  LBL :JDN:    (67)
+ 332  STO 70
+ 333  14
+ 334  X<>Y
+ 335  -
+ 336  12
+ 337  ÷
+ 338  IP
+ 339  STO 68
+ 340  12
+ 341  ×
+ 342  STO+ 70
+ 343  3
+ 344  STO- 70
+ 345  RCL 62
+ 346  4800
+ 347  +
+ 348  RCL 68
+ 349  -
+ 350  STO 69
+ 351  RCL 70
+ 352  153
+ 353  ×
+ 354  2
+ 355  +
+ 356  5
+ 357  ÷
+ 358  IP
+ 359  RCL 69
+ 360  365
+ 361  ×
+ 362  +
+ 363  RCL 69
+ 364  4
+ 365  ÷
+ 366  IP
+ 367  +
+ 368  RCL 69
+ 369  100
+ 370  ÷
+ 371  IP
+ 372  -
+ 373  RCL 69
+ 374  400
+ 375  ÷
+ 376  IP
+ 377  +
+ 378  32044
+ 379  -
+ 380  RTN
+      ; ---- LBL :BAND: the column R29 inverted (XOR): 15 pixel columns of 138 rows, 59-196,
+      ; in three passes (64 + 64 + 10 rows); twice = off ----
+ 381  LBL :BAND:    (68)
+ 382  3
+ 383  GRMOD
+ 384  RCL 29
+ 385  15
+ 386  ×
+ 387  19
+ 388  +
+ 389  STO 25
+ 390  59
+ 391  RCL 25
+ 392  XEQ :R64:    (69)
+ 393  123
+ 394  RCL 25
+ 395  XEQ :R64:    (69)
+ 396  187
+ 397  RCL 25
+ 398  15
+ 399  STO 27
+ 400  DROP
+ 401  DO    (04)
+ 402    AGRAPH 24
+ 403    DSE 27
+ 404  WHILE    (04)
+ 405  ENDDO    (04)
+ 406  0
+ 407  GRMOD
+ 408  RTN
+      ; LBL :R64: 15 columns of 64 rows from Y (row), X (column)
+ 409  LBL :R64:    (69)
+ 410  15
+ 411  STO 27
+ 412  DROP
+ 413  DO    (05)
+ 414    AGRAPH 23
+ 415    DSE 27
+ 416  WHILE    (05)
+ 417  ENDDO    (05)
+ 418  RTN
+      ; ---- LBL :TICK: the clock (LBL :CLOCK:); a new minute: the header ----
+ 419  LBL :TICK:    (70)
+ 420  XEQ :CLOCK:    (71)
+ 421  1440
+ 422  ×
+ 423  0.0001
+ 424  +
+ 425  IP
+ 426  RCL 36
+ 427  X=Y?
+ 428  RTN
+ 429  R↓
+ 430  STO 36
+ 431  XEQ :HEAD:    (72)
+ 432  RTN
+      ; LBL :CLOCK: R31 = the JD of UT now (the clock - TZ hours), also in X
+ 433  LBL :CLOCK:    (71)
+ 434  Date→ⅅ
+ 435  Time→ℸ
+ 436  ⅅℸ→J
+ 437  RCL 30
+ 438  24
+ 439  ÷
+ 440  -
+ 441  STO 31
+ 442  RTN
+      ; ---- LBL :HEAD: the header (rows 197 up cleared): line 1 the zone, its time and date; line 2 TZ, the
+      ; clock's time and the difference zone - TZ ----
+ 443  LBL :HEAD:    (72)
+ 444  XEQ :NOWOFF:    (64)
+ 445  197
+ 446  0
+ 447  CLLCDxy
+ 448  0
+ 449  GRMOD
+ 450  21
+ 451  GRFNT
+ 452  "UTC"
+ 453  STO 34
+ 454  RCL 59
+ 455  X≠0?
+ 456  XEQ :OFFS:    (77)
+ 457  RCL 34
+ 458  218
+ 459  14
+ 460  ATEXT Z
+      ; the zone's JD (R35), its time and date (its offset now, R59: DST added when it is on)
+ 461  RCL 59
+ 462  24
+ 463  ÷
+ 464  RCL 31
+ 465  +
+ 466  STO 35
+ 467  " "
+ 468  STO 34
+ 469  RCL 35
+ 470  XEQ :HHMM:    (79)
+ 471  RCL 34
+ 472  218
+ 473  140
+ 474  ATEXT Z
+ 475  RCL 35
+ 476  XEQ :DATE:    (80)
+ 477  RCL 34
+ 478  218
+ 479  250
+ 480  ATEXT Z
+      ; line 2: TZ (the clock), the clock's time, the difference
+ 481  "TZ "
+ 482  STO 34
+ 483  RCL 30
+ 484  XEQ :OFFS:    (77)
+ 485  RCL 34
+ 486  198
+ 487  14
+ 488  ATEXT Z
+ 489  " "
+ 490  STO 34
+ 491  RCL 30
+ 492  24
+ 493  ÷
+ 494  RCL 31
+ 495  +
+ 496  XEQ :HHMM:    (79)
+ 497  RCL 34
+ 498  198
+ 499  140
+ 500  ATEXT Z
+ 501  RCL 59
+ 502  RCL 30
+ 503  -
+ 504  STO 39
+ 505  X=0?
+ 506  XEQ :SAME:    (75)
+ 507  RCL 39
+ 508  X≠0?
+ 509  XEQ :DIFF:    (76)
+ 510  RCL 34
+ 511  198
+ 512  250
+ 513  ATEXT Z
+      ; line 3, under the map: the city and its DST. First 50 spaces in GRMOD 1 (7 columns each: x 14-363)
+      ; clear the line before
+ 514  1
+ 515  GRMOD
+ 516  "                                                  "
+ 517  16
+ 518  14
+ 519  ATEXT Z
+ 520  0
+ 521  GRMOD
+ 522  RCL 48
+ 523  STO 34
+ 524  " "
+ 525  x→α 34
+ 526  RCL 84
+ 527  x→α 34
+ 528  "  "
+ 529  x→α 34
+ 530  RCL 80
+ 531  αIP 34
+ 532  "/"
+ 533  x→α 34
+ 534  RCL 77
+ 535  αIP 34
+ 536  RCL 49
+ 537  X≠0?
+ 538  XEQ :DST:    (74)
+ 539  RCL 50
+ 540  27
+ 541  X=Y?
+ 542  XEQ :DSTVAR:    (73)
+ 543  RCL 34
+ 544  16
+ 545  14
+ 546  ATEXT Z
+ 547  RTN
+      ; LBL :DSTVAR: a city whose DST follows no rule (Casablanca): standard time shown
+ 548  LBL :DSTVAR:    (73)
+ 549  "  DST varies"
+ 550  x→α 34
+ 551  RTN
+      ; LBL :DST: "  summer +1 h" (DST on now) or "  winter, DST +1 h" appended to R34
+ 552  LBL :DST:    (74)
+ 553  RCL 59
+ 554  RCL 28
+ 555  X=Y?
+ 556  IF    (04)
+ 557    "  winter, DST "
+ 558  ELSE    (04)
+ 559    "  summer "
+ 560  ENDIF    (04)
+ 561  x→α 34
+ 562  RCL 49
+ 563  XEQ :OFFS:    (77)
+ 564  " h"
+ 565  x→α 34
+ 566  RTN
+      ; LBL :SAME: the text "same time"; LBL :DIFF: the difference R39 and " h"
+ 567  LBL :SAME:    (75)
+ 568  "same time"
+ 569  STO 34
+ 570  RTN
+ 571  LBL :DIFF:    (76)
+ 572  " "
+ 573  STO 34
+ 574  RCL 39
+ 575  XEQ :OFFS:    (77)
+ 576  " h"
+ 577  x→α 34
+ 578  RTN
+      ; ---- LBL :OFFS: the offset X appended to R34: the sign, the hours, ":mm" when it has minutes ----
+ 579  LBL :OFFS:    (77)
+ 580  STO 38
+ 581  X<0?
+ 582  IF    (05)
+ 583    "-"
+ 584  ELSE    (05)
+ 585    "+"
+ 586  ENDIF    (05)
+ 587  x→α 34
+ 588  RCL 38
+ 589  ABS
+ 590  STO 38
+ 591  αIP 34
+ 592  RCL 38
+ 593  FP
+ 594  X≠0?
+ 595  IF    (06)
+ 596    ":"
+ 597    x→α 34
+ 598    RCL 38
+ 599    FP
+ 600    60
+ 601    ×
+ 602    0.5
+ 603    +
+ 604    IP
+ 605    XEQ :TWO:    (78)
+ 606  ENDIF    (06)
+ 607  RTN
+      ; ---- LBL :TWO: X (0-99) appended to R34 in two digits ----
+ 608  LBL :TWO:    (78)
+ 609  STO 40
+ 610  10
+ 611  X>Y?
+ 612  IF    (07)
+ 613    "0"
+ 614    x→α 34
+ 615  ENDIF    (07)
+ 616  RCL 40
+ 617  αIP 34
+ 618  RTN
+      ; ---- LBL :HHMM: the time of the JD in X appended to R34 as hh:mm ----
+ 619  LBL :HHMM:    (79)
+ 620  0.5
+ 621  +
+ 622  1
+ 623  MOD
+ 624  1440
+ 625  ×
+ 626  0.0001
+ 627  +
+ 628  IP
+ 629  STO 41
+ 630  60
+ 631  ÷
+ 632  IP
+ 633  XEQ :TWO:    (78)
+ 634  ":"
+ 635  x→α 34
+ 636  RCL 41
+ 637  60
+ 638  MOD
+ 639  XEQ :TWO:    (78)
+ 640  RTN
+      ; ---- LBL :DATE: the date of the JD in X in R34: "Fri 23 Oct" (LBL :CAL:; the weekday N + 1 mod 7,
+      ; 0 Sunday) ----
+ 641  LBL :DATE:    (80)
+ 642  XEQ :CAL:    (81)
+ 643  RCL 44
+ 644  1
+ 645  +
+ 646  7
+ 647  MOD
+ 648  3
+ 649  ×
+ 650  XEQ :NAME3:    (82)
+ 651  STO 34
+ 652  " "
+ 653  x→α 34
+ 654  RCL 60
+ 655  αIP 34
+ 656  " "
+ 657  x→α 34
+ 658  RCL 61
+ 659  3
+ 660  ×
+ 661  18
+ 662  +
+ 663  XEQ :NAME3:    (82)
+ 664  x→α 34
+ 665  RTN
+      ; ---- LBL :CAL: the calendar date of the JD in X (Fliegel and Van Flandern): R44 the day number
+      ; N = IP(JD + 0.5), R60 the day, R61 the month, R62 the year. a = N + 32044, b = (4a + 3) div 146097,
+      ; c = a - 146097b div 4, d = (4c + 3) div 1461, e = c - 1461d div 4, m = (5e + 2) div 153 (R45 a, c, e;
+      ; R46 b; R47 d; R55 m) ----
+ 666  LBL :CAL:    (81)
+ 667  0.5
+ 668  +
+ 669  IP
+ 670  STO 44
+ 671  32044
+ 672  +
+ 673  STO 45
+ 674  4
+ 675  ×
+ 676  3
+ 677  +
+ 678  146097
+ 679  ÷
+ 680  IP
+ 681  STO 46
+ 682  146097
+ 683  ×
+ 684  4
+ 685  ÷
+ 686  IP
+ 687  STO- 45
+ 688  RCL 45
+ 689  4
+ 690  ×
+ 691  3
+ 692  +
+ 693  1461
+ 694  ÷
+ 695  IP
+ 696  STO 47
+ 697  1461
+ 698  ×
+ 699  4
+ 700  ÷
+ 701  IP
+ 702  STO- 45
+ 703  RCL 45
+ 704  5
+ 705  ×
+ 706  2
+ 707  +
+ 708  153
+ 709  ÷
+ 710  IP
+ 711  STO 55
+      ; the day = e - (153m + 2) div 5 + 1
+ 712  153
+ 713  ×
+ 714  2
+ 715  +
+ 716  5
+ 717  ÷
+ 718  IP
+ 719  RCL 45
+ 720  X<>Y
+ 721  -
+ 722  1
+ 723  +
+ 724  STO 60
+      ; the month = m + 3 - 12 (m div 10); the year = 100b + d - 4800 + m div 10
+ 725  RCL 55
+ 726  10
+ 727  ÷
+ 728  IP
+ 729  STO 56
+ 730  -12
+ 731  ×
+ 732  RCL 55
+ 733  +
+ 734  3
+ 735  +
+ 736  STO 61
+ 737  RCL 46
+ 738  100
+ 739  ×
+ 740  RCL 47
+ 741  +
+ 742  4800
+ 743  -
+ 744  RCL 56
+ 745  +
+ 746  STO 62
+ 747  RTN
+      ; LBL :NAME3: 3 letters from position X of R42 (the days at 0, the months at 21 + 3 (month - 1)):
+      ; the names copied to R47, X letters off the left (αSL), the 3 left ones (αLEFT) in X
+ 748  LBL :NAME3:    (82)
+ 749  RCL 42
+ 750  STO 47
+ 751  R↓
+ 752  αSL 47
+ 753  3
+ 754  αLEFT 47
+ 755  RTN
+      ; ---- LBL :INIT: the start: TZ, the patterns, the map, the scale, the keys, the zone of TZ ----
+ 756  LBL :INIT:    (83)
+ 757  WSIZE 64
+ 758  0
+ 759  STO+ "TZ"
+      ; TZ = 0: new, or the clock on UT: ask for it (INPUT as NAVFULL: the prompt in ALPHA, R/S keeps it)
+ 760  RCL "TZ"
+ 761  X=0?
+ 762  XEQ :ASKTZ:    (84)
+ 763  RCL "TZ"
+ 764  STO 30
+      ; 64 ones and 10 ones (the band), 3 ones (a tick)
+ 765  1111111111111111111111111111111111111111111111111111111111111111#2
+ 766  STO 23
+ 767  1111111111#2
+ 768  STO 24
+ 769  111#2
+ 770  STO 26
+ 771  "SunMonTueWedThuFriSatJanFebMarAprMayJunJulAugSepOctNovDec"
+ 772  STO 42
+      ; the DST rule letters of the city entries: - none, A-Z the rules 1-26, * none that follows a rule
+ 773  "-ABCDEFGHIJKLMNOPQRSTUVWXYZ*"
+ 774  STO 81
+ 775  -1
+ 776  STO 36
+ 777  CLLCD
+ 778  0
+ 779  GRMOD
+ 780  XEQ :MAP:    (91)
+ 781  XEQ :SCALE:    (90)
+      ; ==== NSTOPS (written by tools/build_zone47.py: the number of stops)
+ 782  38
+ 783  STO 43
+      ; the home stop: the one nearest to TZ by its offset now, DST included (of two as near: the one
+      ; without DST on, then the first), R37
+ 784  XEQ :CLOCK:    (71)
+ 785  XEQ :NEAR:    (86)
+ 786  RCL 37
+ 787  STO 32
+ 788  XEQ :REC:    (58)
+ 789  XEQ :HOME:    (89)
+ 790  XEQ :BAND:    (68)
+ 791  XEQ :TICK:    (70)
+ 792  RTN
+      ; LBL :ASKTZ: TZ asked: hours from UT of the clock, DST included (3 for UT+3, 0 for UT)
+ 793  LBL :ASKTZ:    (84)
+ 794  "TZ=CLOCK-UT h, R/S"
+ 795  INPUT "TZ"
+ 796  RTN
+      ; LBL :RECX: the stop's label only: R28 the offset, R29 the column (the cities stored, none taken out)
+ 797  LBL :RECX:    (85)
+ 798  XEQ IND 32
+ 799  STO 28
+ 800  R↓
+ 801  STO 29
+ 802  RTN
+      ; LBL :NEAR: every stop (its first city), nn down to 1: the distance to TZ in R38, the nearest so far in R39, its stop in R37
+ 803  LBL :NEAR:    (86)
+ 804  RCL 43
+ 805  STO 27
+ 806  99
+ 807  STO 39
+ 808  DO    (06)
+ 809    RCL 27
+ 810    STO 32
+        ; a stop more than 1.5 h from TZ: its standard offset's distance (DST adds 1 h at most); a nearer one:
+        ; its first city and its offset now (LBL :NEAR2:)
+ 811  XEQ :RECX:    (85)
+ 812  RCL 28
+ 813  RCL 30
+ 814  -
+ 815  ABS
+ 816  STO 38
+ 817  1.5
+ 818  X≥Y?
+ 819  XEQ :NEAR2:    (87)
+ 820  RCL 39
+ 821  RCL 38
+ 822  X≤Y?
+ 823  XEQ :BEST:    (88)
+ 824  DSE 27
+ 825  WHILE    (06)
+ 826  ENDDO    (06)
+ 827  RTN
+      ; LBL :NEAR2: the distance of a stop near TZ, from its first city
+ 828  LBL :NEAR2:    (87)
+ 829  1
+ 830  STO 80
+ 831  XEQ :CITY:    (59)
+ 832  XEQ :NOWOFF:    (64)
+      ; the distance: |offset now - TZ| + 0.01 (DST on) or |standard offset - TZ|, the smaller: of two as
+      ; near, the one on standard time (TZ 3 in October: Moscow, not Cairo; TZ -5: Bogota's stop, not Chicago)
+ 833  RCL 59
+ 834  RCL 30
+ 835  -
+ 836  ABS
+ 837  RCL 59
+ 838  RCL 28
+ 839  -
+ 840  100
+ 841  ÷
+ 842  +
+ 843  STO 38
+ 844  RCL 28
+ 845  RCL 30
+ 846  -
+ 847  ABS
+ 848  RCL 38
+ 849  X>Y?
+ 850  X<>Y
+ 851  STO 38
+ 852  RTN
+      ; LBL :BEST: this stop is the nearest so far
+ 853  LBL :BEST:    (88)
+ 854  RCL 38
+ 855  STO 39
+ 856  RCL 27
+ 857  STO 37
+ 858  RTN
+      ; ---- LBL :HOME: a triangle under the column of the home stop (R29), rows 38-40, centre x 26 + 15c ----
+ 859  LBL :HOME:    (89)
+ 860  RCL 29
+ 861  15
+ 862  ×
+ 863  24
+ 864  +
+ 865  STO 25
+ 866  1#2
+ 867  STO 38
+ 868  11#2
+ 869  STO 39
+ 870  111#2
+ 871  STO 40
+ 872  38
+ 873  RCL 25
+ 874  AGRAPH 38
+ 875  AGRAPH 39
+ 876  AGRAPH 40
+ 877  AGRAPH 39
+ 878  AGRAPH 38
+ 879  RTN
+      ; ---- LBL :SCALE: the ticks between the zones (x 19 + 15m, rows 56-58), the zone numbers (even zones,
+      ; tinyFont), the keys ----
+ 880  LBL :SCALE:    (90)
+ 881  56
+ 882  19
+ 883  25
+ 884  STO 27
+ 885  DROP
+ 886  DO    (07)
+ 887    AGRAPH 26
+ 888    14
+ 889    +
+ 890    DSE 27
+ 891  WHILE    (07)
+ 892  ENDDO    (07)
+ 893  10
+ 894  GRFNT
+      ; ==== LABELS (written by tools/build_zone47.py: the zone numbers, string row x ATEXT Z)
+ 895  "-10"
+ 896  46
+ 897  32
+ 898  ATEXT Z
+ 899  "-8"
+ 900  46
+ 901  65
+ 902  ATEXT Z
+ 903  "-6"
+ 904  46
+ 905  95
+ 906  ATEXT Z
+ 907  "-4"
+ 908  46
+ 909  125
+ 910  ATEXT Z
+ 911  "-2"
+ 912  46
+ 913  155
+ 914  ATEXT Z
+ 915  "0"
+ 916  46
+ 917  188
+ 918  ATEXT Z
+ 919  "+2"
+ 920  46
+ 921  215
+ 922  ATEXT Z
+ 923  "+4"
+ 924  46
+ 925  245
+ 926  ATEXT Z
+ 927  "+6"
+ 928  46
+ 929  275
+ 930  ATEXT Z
+ 931  "+8"
+ 932  46
+ 933  305
+ 934  ATEXT Z
+ 935  "+10"
+ 936  46
+ 937  332
+ 938  ATEXT Z
+ 939  "+12"
+ 940  46
+ 941  362
+ 942  ATEXT Z
+ 943  "4: WEST   5: EAST   8 2: CITY   0: END   TZ = clock - UT"
+ 944  4
+ 945  14
+ 946  ATEXT Z
+ 947  RTN
+      ; ---- LBL :MAP: the dot map, one dot column a step group: the bands of rows 151, 106, 61 up (Z, Y, X),
+      ; then XEQ :COL:. R25 the x of the column ----
+ 948  LBL :MAP:    (91)
+ 949  20
+ 950  STO 25
+      ; ==== MAP (written by tools/build_zone47.py from python/worldmap.py)
+ 951  0
+ 952  0
+ 953  0
+ 954  XEQ :COL:    (92)
+ 955  0
+ 956  0
+ 957  0
+ 958  XEQ :COL:    (92)
+ 959  3674210304
+ 960  0
+ 961  0
+ 962  XEQ :COL:    (92)
+ 963  29444014080
+ 964  0
+ 965  0
+ 966  XEQ :COL:    (92)
+ 967  29450305536
+ 968  0
+ 969  0
+ 970  XEQ :COL:    (92)
+ 971  29450305536
+ 972  0
+ 973  0
+ 974  XEQ :COL:    (92)
+ 975  29450305536
+ 976  0
+ 977  0
+ 978  XEQ :COL:    (92)
+ 979  29444014080
+ 980  0
+ 981  0
+ 982  XEQ :COL:    (92)
+ 983  29444014080
+ 984  0
+ 985  0
+ 986  XEQ :COL:    (92)
+ 987  29444014080
+ 988  0
+ 989  0
+ 990  XEQ :COL:    (92)
+ 991  3674210304
+ 992  0
+ 993  0
+ 994  XEQ :COL:    (92)
+ 995  3680501760
+ 996  0
+ 997  0
+ 998  XEQ :COL:    (92)
+ 999  3680501760
+1000  0
+1001  0
+1002  XEQ :COL:    (92)
+1003  29451091968
+1004  0
+1005  0
+1006  XEQ :COL:    (92)
+1007  29451190272
+1008  0
+1009  0
+1010  XEQ :COL:    (92)
+1011  29451202560
+1012  0
+1013  0
+1014  XEQ :COL:    (92)
+1015  235609634523
+1016  0
+1017  0
+1018  XEQ :COL:    (92)
+1019  1859107272411
+1020  13194139533312
+1021  0
+1022  XEQ :COL:    (92)
+1023  1884877076187
+1024  14843406974976
+1025  0
+1026  XEQ :COL:    (92)
+1027  1884877076187
+1028  15049565405184
+1029  0
+1030  XEQ :COL:    (92)
+1031  1884877076187
+1032  15075335208960
+1033  0
+1034  XEQ :COL:    (92)
+1035  1884877076187
+1036  15075335208960
+1037  0
+1038  XEQ :COL:    (92)
+1039  1884877076187
+1040  15078959087616
+1041  0
+1042  XEQ :COL:    (92)
+1043  14872858179291
+1044  15078959087616
+1045  0
+1046  XEQ :COL:    (92)
+1047  1884877076187
+1048  15079009419264
+1049  0
+1050  XEQ :COL:    (92)
+1051  15079016609499
+1052  15050018390016
+1053  0
+1054  XEQ :COL:    (92)
+1055  15079016609499
+1056  14843457306624
+1057  0
+1058  XEQ :COL:    (92)
+1059  15053190182619
+1060  14843866251264
+1061  0
+1062  XEQ :COL:    (92)
+1063  15078959986395
+1064  14843866251264
+1065  0
+1066  XEQ :COL:    (92)
+1067  15078959986395
+1068  14843414052864
+1069  0
+1070  XEQ :COL:    (92)
+1071  15078556546779
+1072  15078556532952
+1073  0
+1074  XEQ :COL:    (92)
+1075  13426125289179
+1076  13197763524315
+1077  13194139533312
+1078  XEQ :COL:    (92)
+1079  13223590737624
+1080  898779
+1081  14843406975192
+1082  XEQ :COL:    (92)
+1083  13223590737600
+1084  403551963
+1085  15049622927067
+1086  XEQ :COL:    (92)
+1087  14872858179264
+1088  403551963
+1089  15079016609499
+1090  XEQ :COL:    (92)
+1091  14847038043648
+1092  898779
+1093  15079016609280
+1094  XEQ :COL:    (92)
+1095  14846635390464
+1096  898779
+1097  15079016607744
+1098  XEQ :COL:    (92)
+1099  14843407873536
+1100  112347
+1101  15079016595456
+1102  XEQ :COL:    (92)
+1103  14843407085568
+1104  14043
+1105  15079016595456
+1106  XEQ :COL:    (92)
+1107  15075335222784
+1108  14043
+1109  15079016497152
+1110  XEQ :COL:    (92)
+1111  15078959087616
+1112  14043
+1113  15079015710720
+1114  XEQ :COL:    (92)
+1115  15079009419264
+1116  219
+1117  15078959087616
+1118  XEQ :COL:    (92)
+1119  15079009419264
+1120  219
+1121  15078556434432
+1122  XEQ :COL:    (92)
+1123  15079009419264
+1124  27
+1125  15078556434432
+1126  XEQ :COL:    (92)
+1127  15078556434432
+1128  27
+1129  15049565405184
+1130  XEQ :COL:    (92)
+1131  15078556434432
+1132  27
+1133  13194139533312
+1134  XEQ :COL:    (92)
+1135  15078556434432
+1136  0
+1137  0
+1138  XEQ :COL:    (92)
+1139  15075335208960
+1140  0
+1141  0
+1142  XEQ :COL:    (92)
+1143  15075335208960
+1144  0
+1145  0
+1146  XEQ :COL:    (92)
+1147  15075335208960
+1148  0
+1149  0
+1150  XEQ :COL:    (92)
+1151  15049968058368
+1152  0
+1153  0
+1154  XEQ :COL:    (92)
+1155  13194542186496
+1156  0
+1157  0
+1158  XEQ :COL:    (92)
+1159  402653184
+1160  29451091968
+1161  0
+1162  XEQ :COL:    (92)
+1163  0
+1164  235609620480
+1165  0
+1166  XEQ :COL:    (92)
+1167  98331
+1168  1884877074432
+1169  0
+1170  XEQ :COL:    (92)
+1171  7176411
+1172  15079016607744
+1173  0
+1174  XEQ :COL:    (92)
+1175  897243
+1176  15079016607744
+1177  0
+1178  XEQ :COL:    (92)
+1179  112344
+1180  15079016595456
+1181  0
+1182  XEQ :COL:    (92)
+1183  14019
+1184  15079016595456
+1185  0
+1186  XEQ :COL:    (92)
+1187  56735427
+1188  15079016607744
+1189  0
+1190  XEQ :COL:    (92)
+1191  57521883
+1192  15079016609472
+1193  0
+1194  XEQ :COL:    (92)
+1195  13194599708352
+1196  1884877076184
+1197  1881195675648
+1198  XEQ :COL:    (92)
+1199  13197820933851
+1200  1884877076187
+1201  15078959087616
+1202  XEQ :COL:    (92)
+1203  13197820933824
+1204  1884877076187
+1205  15079015710720
+1206  XEQ :COL:    (92)
+1207  13223584446171
+1208  1884877076187
+1209  15079016497152
+1210  XEQ :COL:    (92)
+1211  13223590737624
+1212  1884877076187
+1213  15079016497152
+1214  XEQ :COL:    (92)
+1215  29451204315
+1216  1884877076187
+1217  15079015710720
+1218  XEQ :COL:    (92)
+1219  29451204123
+1220  1884877076187
+1221  15079015710720
+1222  XEQ :COL:    (92)
+1223  3681400347
+1224  1884877076187
+1225  15078959087616
+1226  XEQ :COL:    (92)
+1227  3681400347
+1228  15079016609499
+1229  15078556434432
+1230  XEQ :COL:    (92)
+1231  3681400539
+1232  15078613956315
+1233  15049565405184
+1234  XEQ :COL:    (92)
+1235  460175067
+1236  15079016609472
+1237  0
+1238  XEQ :COL:    (92)
+1239  3681400539
+1240  15079016609280
+1241  235552112640
+1242  XEQ :COL:    (92)
+1243  3681400539
+1244  15079016607744
+1245  1884416901120
+1246  XEQ :COL:    (92)
+1247  3681400539
+1248  15079010205696
+1249  0
+1250  XEQ :COL:    (92)
+1251  235609634523
+1252  15053239615488
+1253  0
+1254  XEQ :COL:    (92)
+1255  209839830747
+1256  15078959087616
+1257  0
+1258  XEQ :COL:    (92)
+1259  1652948842203
+1260  15078556434432
+1261  0
+1262  XEQ :COL:    (92)
+1263  1652948842203
+1264  15075335208960
+1265  0
+1266  XEQ :COL:    (92)
+1267  1652948842203
+1268  15075335208960
+1269  0
+1270  XEQ :COL:    (92)
+1271  29451204315
+1272  15078556434432
+1273  0
+1274  XEQ :COL:    (92)
+1275  235609634523
+1276  15078959087616
+1277  0
+1278  XEQ :COL:    (92)
+1279  29451204315
+1280  15079015710720
+1281  0
+1282  XEQ :COL:    (92)
+1283  29451204315
+1284  15079016497152
+1285  0
+1286  XEQ :COL:    (92)
+1287  235609634523
+1288  15079009517568
+1289  0
+1290  XEQ :COL:    (92)
+1291  235609634523
+1292  15078959087616
+1293  0
+1294  XEQ :COL:    (92)
+1295  235609634523
+1296  15078556434432
+1297  0
+1298  XEQ :COL:    (92)
+1299  235609634523
+1300  15078556434432
+1301  0
+1302  XEQ :COL:    (92)
+1303  15079016609499
+1304  15078959087616
+1305  0
+1306  XEQ :COL:    (92)
+1307  15079016609499
+1308  15079009431552
+1309  0
+1310  XEQ :COL:    (92)
+1311  15079016609499
+1312  15079016609280
+1313  0
+1314  XEQ :COL:    (92)
+1315  15079016609499
+1316  15079015724760
+1317  0
+1318  XEQ :COL:    (92)
+1319  1884877076187
+1320  15079016497368
+1321  0
+1322  XEQ :COL:    (92)
+1323  1884877076187
+1324  15078613843971
+1325  0
+1326  XEQ :COL:    (92)
+1327  1884877076187
+1328  15078556436163
+1329  0
+1330  XEQ :COL:    (92)
+1331  235609634523
+1332  15078556448451
+1333  3674210304
+1334  XEQ :COL:    (92)
+1335  235609634523
+1336  15075335222976
+1337  3681288192
+1338  XEQ :COL:    (92)
+1339  235609634523
+1340  15078613057752
+1341  29451091968
+1342  XEQ :COL:    (92)
+1343  235609634520
+1344  884760
+1345  235609522176
+1346  XEQ :COL:    (92)
+1347  235609634523
+1348  98304
+1349  235608735744
+1350  XEQ :COL:    (92)
+1351  235609634523
+1352  13194139533312
+1353  235608735744
+1354  XEQ :COL:    (92)
+1355  29451204288
+1356  13194139533504
+1357  1884876177408
+1358  XEQ :COL:    (92)
+1359  29451204288
+1360  13194139533528
+1361  1884876963840
+1362  XEQ :COL:    (92)
+1363  1678718645763
+1364  13194139533531
+1365  235609522176
+1366  XEQ :COL:    (92)
+1367  1884876288219
+1368  27
+1369  1884877062144
+1370  XEQ :COL:    (92)
+1371  1884869898432
+1372  27
+1373  1884877062144
+1374  XEQ :COL:    (92)
+1375  29444014080
+1376  3
+1377  29451204096
+1378  XEQ :COL:    (92)
+1379  29444014080
+1380  0
+1381  13197820919808
+1382  XEQ :COL:    (92)
+1383  29450305536
+1384  0
+1385  459276288
+1386  XEQ :COL:    (92)
+1387  29444898816
+1388  0
+1389  0
+1390  XEQ :COL:    (92)
+1391  29451190272
+1392  0
+1393  0
+1394  XEQ :COL:    (92)
+1395  3681288192
+1396  0
+1397  0
+1398  XEQ :COL:    (92)
+1399  3674210304
+1400  0
+1401  0
+1402  XEQ :COL:    (92)
+1403  3674210304
+1404  0
+1405  192
+1406  XEQ :COL:    (92)
+1407  3674210304
+1408  0
+1409  1536
+1410  XEQ :COL:    (92)
+1411  29444014080
+1412  0
+1413  12288
+1414  XEQ :COL:    (92)
+1415  3623878656
+1416  0
+1417  110592
+1418  XEQ :COL:    (92)
+1419  3623878656
+1420  0
+1421  0
+1422  XEQ :COL:    (92)
+1423  3221225472
+1424  0
+1425  0
+1426  XEQ :COL:    (92)
+1427  3623878656
+1428  0
+1429  0
+1430  XEQ :COL:    (92)
+1431  RTN
+      ; LBL :COL: one dot column: each band (SINT: the pattern as a short integer for AGRAPH) drawn twice
+      ; (the dots are 2 x 2), then x + 3
+1432  LBL :COL:    (92)
+1433  SINT
+1434  STO 20
+1435  DROP
+1436  SINT
+1437  STO 21
+1438  DROP
+1439  SINT
+1440  STO 22
+1441  DROP
+1442  61
+1443  RCL 25
+1444  AGRAPH 20
+1445  AGRAPH 20
+1446  106
+1447  RCL 25
+1448  AGRAPH 21
+1449  AGRAPH 21
+1450  151
+1451  RCL 25
+1452  AGRAPH 22
+1453  AGRAPH 22
+1454  3
+1455  STO+ 25
+1456  RTN
+      ; ==== STOPS (written by tools/build_zone47.py from python/zones.py: LBL nn, the city texts STO 72-74,
+      ; the numbers STO 75-77, the column, the offset, RTN; then the DST rules LBL 40 + r: the end hour, end code,
+      ; start hour, start code + 20000 DST, RTN)
+1457  LBL 01
+1458  "-  at sea"
+1459  STO 72
+1460  1
+1461  STO 75
+1462  1
+1463  STO 76
+1464  1
+1465  STO 77
+1466  23
+1467  -12
+1468  RTN
+1469  LBL 02
+1470  "-ASPago Pago/-UMMidway/-NUNiue"
+1471  STO 72
+1472  3
+1473  STO 75
+1474  3
+1475  STO 76
+1476  3
+1477  STO 77
+1478  0
+1479  -11
+1480  RTN
+1481  LBL 03
+1482  "-USHonolulu/AUSAdak/-CKRarotonga/-PFTahiti"
+1483  STO 72
+1484  4
+1485  STO 75
+1486  4
+1487  STO 76
+1488  4
+1489  STO 77
+1490  1
+1491  -10
+1492  RTN
+1493  LBL 04
+1494  "-PFMarquesas"
+1495  STO 72
+1496  1
+1497  STO 75
+1498  1
+1499  STO 76
+1500  1
+1501  STO 77
+1502  2
+1503  -9.5
+1504  RTN
+1505  LBL 05
+1506  "AUSAnchorage/-PFGambier"
+1507  STO 72
+1508  2
+1509  STO 75
+1510  2
+1511  STO 76
+1512  2
+1513  STO 77
+1514  2
+1515  -9
+1516  RTN
+1517  LBL 06
+1518  "AUSLos Angeles/-PNPitcairn/AMXTijuana/*CAVancouver"
+1519  STO 72
+1520  4
+1521  STO 75
+1522  4
+1523  STO 76
+1524  4
+1525  STO 77
+1526  3
+1527  -8
+1528  RTN
+1529  LBL 07
+1530  "AUSDenver/ACACambridge Bay/AMXCiudad Juarez/-CACreston/*CAEdmonton/-MXMazatlan/-USPhoenix"
+1531  STO 72
+1532  7
+1533  STO 75
+1534  7
+1535  STO 76
+1536  7
+1537  STO 77
+1538  4
+1539  -7
+1540  RTN
+1541  LBL 08
+1542  "AUSChicago/-BZBelize/-CRCosta Rica/BCLEaster/-SVEl Salvador/-ECGalapagos/-GTGuatemala/-NIManagua/AMXMatamoros/-MXMexico City/-CARegina/ACAResolute/-HNTegucigalpa/*CAWinnipeg"
+1543  STO 72
+1544  14
+1545  STO 75
+1546  14
+1547  STO 76
+1548  14
+1549  STO 77
+1550  5
+1551  -6
+1552  RTN
+1553  LBL 09
+1554  "AUSNew York/-CAAtikokan/-COBogota/-COMedellin/-MXCancun/-KYCayman/-BREirunepe/ATCGrand Turk/-ECGuayaquil/CCUHavana/-JMJamaica/-PELima/ABSNassau/-PAPanama/AHTPort-au-Prince/ACAToronto"
+1555  STO 72
+1556  16
+1557  STO 75
+1558  16
+1559  STO 76
+1560  16
+1561  STO 77
+1562  6
+1563  -5
+1564  RTN
+1565  LBL 10
+1566  "ACAHalifax/-AIAnguilla/-AGAntigua/-AWAruba/-BBBarbados/ABMBermuda/-CABlanc-Sablon/-BRCampo Grande/-VECaracas/-CWCuracao/-DMDominica/-GDGrenada/-GPGuadeloupe/-GYGuyana/-BQKralendijk/-BOLa Paz"
+1567  STO 72
+1568  "-SXLower Princes/-MFMarigot/-MQMartinique/-MSMontserrat/-TTPort of Spain/-PRPuerto Rico/DCLSantiago/-DOSanto Domingo/-BLSt Barthelemy/-KNSt Kitts/-LCSt Lucia/-VISt Thomas/-VCSt Vincent/AGLThule"
+1569  STO 73
+1570  "-VGTortola"
+1571  STO 74
+1572  16
+1573  STO 75
+1574  30
+1575  STO 76
+1576  31
+1577  STO 77
+1578  7
+1579  -4
+1580  RTN
+1581  LBL 11
+1582  "ACASt Johns"
+1583  STO 72
+1584  1
+1585  STO 75
+1586  1
+1587  STO 76
+1588  1
+1589  STO 77
+1590  7
+1591  -3.5
+1592  RTN
+1593  LBL 12
+1594  "-ARBuenos Aires/-PYAsuncion/-BRBelem/-GFCayenne/-CLCoyhaique/APMMiquelon/-UYMontevideo/-SRParamaribo/-FKStanley"
+1595  STO 72
+1596  9
+1597  STO 75
+1598  9
+1599  STO 76
+1600  9
+1601  STO 77
+1602  8
+1603  -3
+1604  RTN
+1605  LBL 13
+1606  "-BRNoronha/EGLNuuk/-GSSouth Georgia"
+1607  STO 72
+1608  3
+1609  STO 75
+1610  3
+1611  STO 76
+1612  3
+1613  STO 77
+1614  9
+1615  -2
+1616  RTN
+1617  LBL 14
+1618  "FPTAzores/-CVCape Verde"
+1619  STO 72
+1620  2
+1621  STO 75
+1622  2
+1623  STO 76
+1624  2
+1625  STO 77
+1626  10
+1627  -1
+1628  RTN
+1629  LBL 15
+1630  "GGBLondon/-CIAbidjan/-GHAccra/-MLBamako/-GMBanjul/-GWBissau/GESCanary/*MACasablanca/-GNConakry/-SNDakar/-GLDanmarkshavn/GIEDublin/*EHEl Aaiun/GFOFaroe/-SLFreetown/GGGGuernsey/GIMIsle of Man"
+1631  STO 72
+1632  "GJEJersey/GPTLisbon/-TGLome/-LRMonrovia/-MRNouakchott/-BFOuagadougou/-ISReykjavik/-STSao Tome/-SHSt Helena"
+1633  STO 73
+1634  17
+1635  STO 75
+1636  26
+1637  STO 76
+1638  26
+1639  STO 77
+1640  11
+1641  0
+1642  RTN
+1643  LBL 16
+1644  "HFRParis/-DZAlgiers/HNLAmsterdam/HADAndorra/-CFBangui/HRSBelgrade/HDEBerlin/HSKBratislava/-CGBrazzaville/HBEBrussels/HHUBudapest/HDKCopenhagen/-CMDouala/HGIGibraltar/-CDKinshasa/-NGLagos"
+1645  STO 72
+1646  "-GALibreville/HSILjubljana/HSJLongyearbyen/-AOLuanda/HLULuxembourg/HESMadrid/-GQMalabo/HMTMalta/HMCMonaco/-TDNdjamena/-NENiamey/HNOOslo/HMEPodgorica/-BJPorto-Novo/HCZPrague/HITRome/HSMSan Marino"
+1647  STO 73
+1648  "HBASarajevo/HMKSkopje/HSEStockholm/HALTirane/-TNTunis/HLIVaduz/HVAVatican/HATVienna/HPLWarsaw/HHRZagreb/HCHZurich"
+1649  STO 74
+1650  16
+1651  STO 75
+1652  33
+1653  STO 76
+1654  44
+1655  STO 77
+1656  12
+1657  1
+1658  RTN
+1659  LBL 17
+1660  "IEGCairo/JGRAthens/KLBBeirut/-MWBlantyre/JROBucharest/-BIBujumbura/JMDChisinau/-BWGaborone/LPSGaza/-ZWHarare/JFIHelsinki/MILJerusalem/-ZAJohannesburg/-SSJuba/-RUKaliningrad/-SDKhartoum/-RWKigali"
+1661  STO 72
+1662  "JUAKyiv/-CDLubumbashi/-ZMLusaka/-MZMaputo/JAXMariehamn/-LSMaseru/-SZMbabane/JCYNicosia/JLVRiga/JBGSofia/JEETallinn/-LYTripoli/JLTVilnius/-NAWindhoek"
+1663  STO 73
+1664  17
+1665  STO 75
+1666  31
+1667  STO 76
+1668  31
+1669  STO 77
+1670  13
+1671  2
+1672  RTN
+1673  LBL 18
+1674  "-RUMoscow/-ETAddis Ababa/-YEAden/-JOAmman/-MGAntananarivo/-ERAsmara/-IQBaghdad/-BHBahrain/-KMComoro/-SYDamascus/-TZDar es Salaam/-DJDjibouti/-TRIstanbul/-UGKampala/-KWKuwait/-YTMayotte/-BYMinsk"
+1675  STO 72
+1676  "-SOMogadishu/-KENairobi/-QAQatar/-SARiyadh/-UASimferopol"
+1677  STO 73
+1678  17
+1679  STO 75
+1680  22
+1681  STO 76
+1682  22
+1683  STO 77
+1684  14
+1685  3
+1686  RTN
+1687  LBL 19
+1688  "-IRTehran"
+1689  STO 72
+1690  1
+1691  STO 75
+1692  1
+1693  STO 76
+1694  1
+1695  STO 77
+1696  14
+1697  3.5
+1698  RTN
+1699  LBL 20
+1700  "-AEDubai/-RUAstrakhan/-AZBaku/-SCMahe/-MUMauritius/-OMMuscat/-REReunion/-GETbilisi/-AMYerevan"
+1701  STO 72
+1702  9
+1703  STO 75
+1704  9
+1705  STO 76
+1706  9
+1707  STO 77
+1708  15
+1709  4
+1710  RTN
+1711  LBL 21
+1712  "-AFKabul"
+1713  STO 72
+1714  1
+1715  STO 75
+1716  1
+1717  STO 76
+1718  1
+1719  STO 77
+1720  16
+1721  4.5
+1722  RTN
+1723  LBL 22
+1724  "-PKKarachi/-KZAlmaty/-TMAshgabat/-TJDushanbe/-TFKerguelen/-MVMaldives/-UZSamarkand/-RUYekaterinburg"
+1725  STO 72
+1726  8
+1727  STO 75
+1728  8
+1729  STO 76
+1730  8
+1731  STO 77
+1732  16
+1733  5
+1734  RTN
+1735  LBL 23
+1736  "-INKolkata/-LKColombo"
+1737  STO 72
+1738  2
+1739  STO 75
+1740  2
+1741  STO 76
+1742  2
+1743  STO 77
+1744  17
+1745  5.5
+1746  RTN
+1747  LBL 24
+1748  "-NPKathmandu"
+1749  STO 72
+1750  1
+1751  STO 75
+1752  1
+1753  STO 76
+1754  1
+1755  STO 77
+1756  17
+1757  5.75
+1758  RTN
+1759  LBL 25
+1760  "-BDDhaka/-KGBishkek/-IOChagos/-RUOmsk/-BTThimphu/-CNUrumqi"
+1761  STO 72
+1762  6
+1763  STO 75
+1764  6
+1765  STO 76
+1766  6
+1767  STO 77
+1768  17
+1769  6
+1770  RTN
+1771  LBL 26
+1772  "-CCCocos/-MMYangon"
+1773  STO 72
+1774  2
+1775  STO 75
+1776  2
+1777  STO 76
+1778  2
+1779  STO 77
+1780  17
+1781  6.5
+1782  RTN
+1783  LBL 27
+1784  "-THBangkok/-CXChristmas/-VNHo Chi Minh/-MNHovd/-IDJakarta/-RUNovosibirsk/-KHPhnom Penh/-LAVientiane"
+1785  STO 72
+1786  8
+1787  STO 75
+1788  8
+1789  STO 76
+1790  8
+1791  STO 77
+1792  18
+1793  7
+1794  RTN
+1795  LBL 28
+1796  "-CNShanghai/-BNBrunei/-HKHong Kong/-RUIrkutsk/-MYKuala Lumpur/-MOMacau/-IDMakassar/-PHManila/-AUPerth/-SGSingapore/-TWTaipei/-MNUlaanbaatar"
+1797  STO 72
+1798  12
+1799  STO 75
+1800  12
+1801  STO 76
+1802  12
+1803  STO 77
+1804  19
+1805  8
+1806  RTN
+1807  LBL 29
+1808  "-AUEucla"
+1809  STO 72
+1810  1
+1811  STO 75
+1812  1
+1813  STO 76
+1814  1
+1815  STO 77
+1816  20
+1817  8.75
+1818  RTN
+1819  LBL 30
+1820  "-JPTokyo/-RUChita/-TLDili/-IDJayapura/-PWPalau/-KPPyongyang/-KRSeoul"
+1821  STO 72
+1822  7
+1823  STO 75
+1824  7
+1825  STO 76
+1826  7
+1827  STO 77
+1828  20
+1829  9
+1830  RTN
+1831  LBL 31
+1832  "NAUBroken Hill/-AUDarwin"
+1833  STO 72
+1834  2
+1835  STO 75
+1836  2
+1837  STO 76
+1838  2
+1839  STO 77
+1840  20
+1841  9.5
+1842  RTN
+1843  LBL 32
+1844  "NAUMacquarie/-AUBrisbane/-FMChuuk/-GUGuam/-PGPort Moresby/-MPSaipan/-RUVladivostok"
+1845  STO 72
+1846  7
+1847  STO 75
+1848  7
+1849  STO 76
+1850  7
+1851  STO 77
+1852  21
+1853  10
+1854  RTN
+1855  LBL 33
+1856  "OAULord Howe"
+1857  STO 72
+1858  1
+1859  STO 75
+1860  1
+1861  STO 76
+1862  1
+1863  STO 77
+1864  22
+1865  10.5
+1866  RTN
+1867  LBL 34
+1868  "-NCNoumea/-PGBougainville/-VUEfate/-SBGuadalcanal/-RUMagadan/NNFNorfolk/-FMPohnpei"
+1869  STO 72
+1870  7
+1871  STO 75
+1872  7
+1873  STO 76
+1874  7
+1875  STO 77
+1876  22
+1877  11
+1878  RTN
+1879  LBL 35
+1880  "PNZAuckland/-FJFiji/-TVFunafuti/-RUKamchatka/-MHMajuro/-NRNauru/-KITarawa/-UMWake/-WFWallis"
+1881  STO 72
+1882  9
+1883  STO 75
+1884  9
+1885  STO 76
+1886  9
+1887  STO 77
+1888  23
+1889  12
+1890  RTN
+1891  LBL 36
+1892  "QNZChatham"
+1893  STO 72
+1894  1
+1895  STO 75
+1896  1
+1897  STO 76
+1898  1
+1899  STO 77
+1900  23
+1901  12.75
+1902  RTN
+1903  LBL 37
+1904  "-TOTongatapu/-WSApia/-TKFakaofo/-KIKanton"
+1905  STO 72
+1906  4
+1907  STO 75
+1908  4
+1909  STO 76
+1910  4
+1911  STO 77
+1912  23
+1913  13
+1914  RTN
+1915  LBL 38
+1916  "-KIKiritimati"
+1917  STO 72
+1918  1
+1919  STO 75
+1920  1
+1921  STO 76
+1922  1
+1923  STO 77
+1924  1
+1925  14
+1926  RTN
+1927  LBL 41
+1928  1
+1929  1110
+1930  2
+1931  20320
+1932  RTN
+1933  LBL 42
+1934  21
+1935  416
+1936  22
+1937  20916
+1938  RTN
+1939  LBL 43
+1940  0
+1941  1110
+1942  0
+1943  20320
+1944  RTN
+1945  LBL 44
+1946  23
+1947  416
+1948  24
+1949  20916
+1950  RTN
+1951  LBL 45
+1952  -1
+1953  1050
+1954  -1
+1955  20350
+1956  RTN
+1957  LBL 46
+1958  0
+1959  1050
+1960  0
+1961  20350
+1962  RTN
+1963  LBL 47
+1964  1
+1965  1050
+1966  1
+1967  20350
+1968  RTN
+1969  LBL 48
+1970  2
+1971  1050
+1972  2
+1973  20350
+1974  RTN
+1975  LBL 49
+1976  23
+1977  1054
+1978  0
+1979  20455
+1980  RTN
+1981  LBL 50
+1982  3
+1983  1050
+1984  3
+1985  20350
+1986  RTN
+1987  LBL 51
+1988  -1
+1989  1050
+1990  0
+1991  20350
+1992  RTN
+1993  LBL 52
+1994  -23
+1995  1050
+1996  -22
+1997  20350
+1998  RTN
+1999  LBL 53
+2000  1
+2001  1050
+2002  26
+2003  20344
+2004  RTN
+2005  LBL 54
+2006  2
+2007  410
+2008  2
+2009  21010
+2010  RTN
+2011  LBL 55
+2012  1.5
+2013  410
+2014  2
+2015  11010
+2016  RTN
+2017  LBL 56
+2018  2
+2019  410
+2020  2
+2021  20950
+2022  RTN
+2023  LBL 57
+2024  2.75
+2025  410
+2026  2.75
+2027  20950
+2028  RTN
+2029  END

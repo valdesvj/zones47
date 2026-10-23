@@ -1,0 +1,1045 @@
+REM ZONE47 v0.1.0 - Zones 47: the world time zones on the C47 / R47
+REM A dot map of the world (3 degrees a dot, 81N to 54S) in 24 columns of 15 degrees, UTC-11 at the left
+REM to UTC+-12 at the right (the last column: 172.5E to 172.5W). The official time zones: one stop per
+REM standard offset of the IANA tz database (tzdata, zone1970.tab; tools/make_zones.py -> python/zones.py),
+REM -12 (at sea) to +14, with a city and its daylight saving rule (DST: worked out for the date, added when on).
+REM The column of the stop is highlighted (XOR); the header shows its offset, time and date, and the
+REM calculator's clock (TZ) with the difference; under the map the city and its DST.
+REM Keys: 4 the stop west (a smaller offset), 5 the stop east (6 too), around at the ends; 8 2 the city
+REM before / after in the stop (every country of the offset, from zone.tab, each with its DST); 0 the end.
+REM The time is updated every minute while the program waits for a key.
+REM TZ: the global variable "TZ" = the offset of the calculator's clock from UT in hours (4 for UT+4, -5.5
+REM for UT-5:30; the clock's offset as it is, summer time included), as MOON47 in Almanac 47: 0 STO+ "TZ"
+REM makes it (0) when it is not there; TZ = 0 (new, or a clock on UT): asked with INPUT, R/S keeps it. The cursor
+REM starts on the stop nearest to TZ, its column marked by a triangle.
+REM Screen 400 x 240, row 0 = bottom (as in Almanac 47). ATEXT in GRFNT 21, the small text in GRFNT 10.
+REM GRMOD and GRFNT take X (rejig writes "GRMOD r" as GRMOD and the number r: Almanac 47).
+REM The user's stack and LASTx are kept (local registers R.00-R.08, as ELEM47 v1.2.0); at the end the
+REM work registers R20-R84 are cleared (R-CLR), the other registers are the user's.
+REM Map: dot column j (0-119) at x 20 + 3j and 21 + 3j, dot row i (0 the top) at rows 194 - 3i, 193 - 3i.
+REM Map column c (0-23: UTC-11 ... UTC+-12) at x 19 + 15c to 33 + 15c, rows 59-196.
+REM The stops: LBL 01-nn (written by the build), each pushes the city (text), DST, the column, the offset.
+REM Registers: R20-R22 the three bands of a map column (rows 61, 106, 151 up), R23 64 ones, R24 10 ones,
+REM R25 the drawing column x, R26 the tick (3 rows), R27 a counter, R30 TZ, R31 the JD of UT now,
+REM R28 the offset of the stop, R29 its column, R32 the stop (1-nn), R33 the key, R34 the text, R35 the JD
+REM in the zone, R36 the minute shown, R37 the home stop, R38-R41 work, R42 the day and month names, R43 nn
+REM (the number of stops), R44-R47 the date, R48 the city, R49 its DST (h), R50 its rule, R53-R58 and
+REM R63-R71 the DST work, R59 the offset now, R60-R62 day month year.
+REM Control flow in the C47 STRUCT commands (IF / ELSE / ENDIF, DO / WHILE / ENDDO: the firmware's app
+REM note AN0007), indented two spaces per level; tools/build_zone47.py checks them and numbers them.
+LBL "ZONE47"
+REM the user's stack in the local registers (as ELEM47 v1.2.0): X..T, A..D with R↓, then LASTx
+LocR 10
+STO R.00
+R↓
+STO R.01
+R↓
+STO R.02
+R↓
+STO R.03
+R↓
+STO R.04
+R↓
+STO R.05
+R↓
+STO R.06
+R↓
+STO R.07
+R↓
+LASTx
+STO R.08
+XEQ :INIT:
+REM ---- keys: 4 west, 5 or 6 east, 0 the end; other keys ignored ----
+DO
+  REM wait for a key: PAUSE 50, KEY? 33 (true: no key yet), as Almanac 47; the clock read each time
+  DO
+    XEQ :TICK:
+    PAUSE 50
+    KEY? 33
+  WHILE
+  ENDDO
+  RCL 33
+  82
+  X≠Y?
+WHILE
+  RCL 33
+  62
+  X=Y?
+  XEQ :WEST:
+  REM 5 (63) or 6 (64): |k - 63.5| = 0.5 for these two keys only
+  RCL 33
+  63.5
+  -
+  ABS
+  1
+  X>Y?
+  XEQ :EAST:
+  REM 8 (53) the city before, 2 (73) the city after, in the stop
+  RCL 33
+  53
+  X=Y?
+  XEQ :CUP:
+  RCL 33
+  73
+  X=Y?
+  XEQ :CDOWN:
+ENDDO
+REM ---- 0: the end: R20-R84 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
+20.65
+R-CLR
+0
+GRMOD
+20
+GRFNT
+CLLCD
+RCL R.08
+STO L
+RCL R.07
+RCL R.06
+RCL R.05
+RCL R.04
+RCL R.03
+RCL R.02
+RCL R.01
+RCL R.00
+RTN
+REM ---- LBL :WEST: one stop west: the highlight off, the stop - 1 (0 -> nn), the new stop ----
+LBL :WEST:
+XEQ :BAND:
+RCL 32
+1
+-
+X=0?
+RCL 43
+STO 32
+XEQ :MOVED:
+RTN
+REM LBL :MOVED: the new stop: its record, the highlight on, the header
+LBL :MOVED:
+XEQ :REC:
+XEQ :BAND:
+XEQ :HEAD:
+RTN
+REM ---- LBL :EAST: one stop east: the stop + 1 (nn + 1 -> 1) ----
+LBL :EAST:
+XEQ :BAND:
+RCL 32
+RCL 43
+MOD
+1
++
+STO 32
+XEQ :MOVED:
+RTN
+REM ---- LBL :REC: the record of the stop R32 (XEQ IND 32): R28 the offset, R29 the column; the label
+REM stores its cities in R72-R74 (texts of up to 196 characters) and the numbers R75 (the cities in R72),
+REM R76 (in R72 and R73), R77 (all). Then its first city (R80 = 1) ----
+LBL :REC:
+XEQ :RECX:
+1
+STO 80
+REM ---- LBL :CITY: the city R80 of the stop: its entry "rCCname" (r the DST rule letter, CC the country)
+REM taken out of R72, R73 or R74 (R82 its place there) into R78 with the "/" between the entries:
+REM R50 the rule (the place of r in R81: 0 none, 1-26 LBL 40 + r, 27 irregular), R84 the country, R48 the name ----
+LBL :CITY:
+RCL 80
+STO 82
+RCL 72
+STO 78
+RCL 75
+RCL 80
+X>Y?
+XEQ :PART2:
+RCL 76
+RCL 80
+X>Y?
+XEQ :PART3:
+"/"
+x→α 78
+REM the entries before it off: each time the text up to its first "/" off (αSL)
+DO
+  RCL 82
+  1
+  X<Y?
+WHILE
+  "/"
+  αPOS 78
+  1
+  +
+  αSL 78
+  1
+  STO- 82
+ENDDO
+"/"
+αPOS 78
+αLEFT 78
+STO 78
+1
+αLEFT 78
+αPOS 81
+STO 50
+1
+αSL 78
+2
+αLEFT 78
+STO 84
+2
+αSL 78
+RCL 78
+STO 48
+RTN
+REM LBL :PART2:, LBL :PART3: the city is in R73 (place - R75) or R74 (place - R76)
+LBL :PART2:
+RCL 73
+STO 78
+RCL 80
+RCL 75
+-
+STO 82
+RTN
+LBL :PART3:
+RCL 74
+STO 78
+RCL 80
+RCL 76
+-
+STO 82
+RTN
+REM ---- LBL :CUP: the city before (1 -> the last), LBL :CDOWN: the city after (the last -> 1); the header ----
+LBL :CUP:
+RCL 80
+1
+-
+X=0?
+RCL 77
+STO 80
+XEQ :CITY:
+XEQ :HEAD:
+RTN
+LBL :CDOWN:
+RCL 80
+RCL 77
+MOD
+1
++
+STO 80
+XEQ :CITY:
+XEQ :HEAD:
+RTN
+REM ---- LBL :NOWOFF: R59 = the offset of the city now: R28, + R49 when its rule R50 has DST on at the UT
+REM R31 (rule 0 or 27: none, R49 = 0). The rule (LBL 40 + r) pushes the end hour, the end code, the start
+REM hour, the start code + 20000 x DST (h); a code
+REM is 100 month + 10 n + weekday (n 1-4, 5 the last; weekday 0 Sunday), the hours in standard time.
+REM R53 the start, R54 the end (JDs in the stop's standard time) in the year of R57 = R31 + R28/24 (the stop's standard time now) ----
+LBL :NOWOFF:
+RCL 28
+STO 59
+0
+STO 49
+RCL 50
+X=0?
+RTN
+27
+X=Y?
+RTN
+RCL 28
+24
+÷
+RCL 31
++
+STO 57
+XEQ :CAL:
+RCL 50
+40
++
+STO 56
+XEQ IND 56
+STO 56
+R↓
+STO 58
+R↓
+STO 63
+R↓
+STO 64
+REM the start code + 20000 DST: R49 the DST in hours
+RCL 56
+10000
+÷
+IP
+2
+÷
+STO 49
+RCL 56
+10000
+MOD
+STO 56
+XEQ :TRANS:
+STO 53
+RCL 63
+STO 56
+RCL 64
+STO 58
+XEQ :TRANS:
+STO 54
+REM north (start < end): on from the start to the end; south (the end first): on from the start, or
+REM before the end
+RCL 53
+RCL 54
+X>Y?
+IF
+  RCL 53
+  RCL 57
+  X≥Y?
+  IF
+    RCL 54
+    RCL 57
+    X<Y?
+    XEQ :DSTON:
+  ENDIF
+ELSE
+  RCL 53
+  RCL 57
+  X≥Y?
+  XEQ :DSTON:
+  RCL 54
+  RCL 57
+  X<Y?
+  XEQ :DSTON:
+ENDIF
+RTN
+REM LBL :DSTON: DST on: R59 = R28 + R49
+LBL :DSTON:
+RCL 49
+RCL 28
++
+STO 59
+RTN
+REM ---- LBL :TRANS: the JD (standard time) of the code R56 at the hour R58 in the year R62:
+REM n < 5: the first weekday w of the month from its 1st (R65), + 7 (n - 1); n = 5: the last w back from the
+REM last day of the month (the 1st of month + 1, - 1) ----
+LBL :TRANS:
+RCL 56
+10
+MOD
+STO 66
+RCL 56
+10
+÷
+IP
+10
+MOD
+STO 67
+RCL 56
+100
+÷
+IP
+STO 71
+5
+RCL 67
+X=Y?
+IF
+  RCL 71
+  1
+  +
+  XEQ :JDN:
+  1
+  -
+  STO 65
+  1
+  +
+  7
+  MOD
+  RCL 66
+  -
+  7
+  +
+  7
+  MOD
+  STO- 65
+ELSE
+  RCL 71
+  XEQ :JDN:
+  STO 65
+  RCL 66
+  RCL 65
+  1
+  +
+  7
+  MOD
+  -
+  7
+  +
+  7
+  MOD
+  STO+ 65
+  RCL 67
+  1
+  -
+  7
+  ×
+  STO+ 65
+ENDIF
+RCL 65
+0.5
+-
+RCL 58
+24
+÷
++
+RTN
+REM ---- LBL :JDN: the day number of the 1st of the month X (13 = January of the next year) of the year R62:
+REM a = (14 - m) div 12, y = Y + 4800 - a, m' = m + 12a - 3, N = 1 + (153m' + 2) div 5 + 365y + y div 4
+REM - y div 100 + y div 400 - 32045 (R68 a, R69 y, R70 m') ----
+LBL :JDN:
+STO 70
+14
+X<>Y
+-
+12
+÷
+IP
+STO 68
+12
+×
+STO+ 70
+3
+STO- 70
+RCL 62
+4800
++
+RCL 68
+-
+STO 69
+RCL 70
+153
+×
+2
++
+5
+÷
+IP
+RCL 69
+365
+×
++
+RCL 69
+4
+÷
+IP
++
+RCL 69
+100
+÷
+IP
+-
+RCL 69
+400
+÷
+IP
++
+32044
+-
+RTN
+REM ---- LBL :BAND: the column R29 inverted (XOR): 15 pixel columns of 138 rows, 59-196,
+REM in three passes (64 + 64 + 10 rows); twice = off ----
+LBL :BAND:
+3
+GRMOD
+RCL 29
+15
+×
+19
++
+STO 25
+59
+RCL 25
+XEQ :R64:
+123
+RCL 25
+XEQ :R64:
+187
+RCL 25
+15
+STO 27
+DROP
+DO
+  AGRAPH 24
+  DSE 27
+WHILE
+ENDDO
+0
+GRMOD
+RTN
+REM LBL :R64: 15 columns of 64 rows from Y (row), X (column)
+LBL :R64:
+15
+STO 27
+DROP
+DO
+  AGRAPH 23
+  DSE 27
+WHILE
+ENDDO
+RTN
+REM ---- LBL :TICK: the clock (LBL :CLOCK:); a new minute: the header ----
+LBL :TICK:
+XEQ :CLOCK:
+1440
+×
+0.0001
++
+IP
+RCL 36
+X=Y?
+RTN
+R↓
+STO 36
+XEQ :HEAD:
+RTN
+REM LBL :CLOCK: R31 = the JD of UT now (the clock - TZ hours), also in X
+LBL :CLOCK:
+Date→ⅅ
+Time→ℸ
+ⅅℸ→J
+RCL 30
+24
+÷
+-
+STO 31
+RTN
+REM ---- LBL :HEAD: the header (rows 197 up cleared): line 1 the zone, its time and date; line 2 TZ, the
+REM clock's time and the difference zone - TZ ----
+LBL :HEAD:
+XEQ :NOWOFF:
+197
+0
+CLLCDxy
+0
+GRMOD
+21
+GRFNT
+"UTC"
+STO 34
+RCL 59
+X≠0?
+XEQ :OFFS:
+RCL 34
+218
+14
+ATEXT Z
+REM the zone's JD (R35), its time and date (its offset now, R59: DST added when it is on)
+RCL 59
+24
+÷
+RCL 31
++
+STO 35
+" "
+STO 34
+RCL 35
+XEQ :HHMM:
+RCL 34
+218
+140
+ATEXT Z
+RCL 35
+XEQ :DATE:
+RCL 34
+218
+250
+ATEXT Z
+REM line 2: TZ (the clock), the clock's time, the difference
+"TZ "
+STO 34
+RCL 30
+XEQ :OFFS:
+RCL 34
+198
+14
+ATEXT Z
+" "
+STO 34
+RCL 30
+24
+÷
+RCL 31
++
+XEQ :HHMM:
+RCL 34
+198
+140
+ATEXT Z
+RCL 59
+RCL 30
+-
+STO 39
+X=0?
+XEQ :SAME:
+RCL 39
+X≠0?
+XEQ :DIFF:
+RCL 34
+198
+250
+ATEXT Z
+REM line 3, under the map: the city and its DST. First 50 spaces in GRMOD 1 (7 columns each: x 14-363)
+REM clear the line before
+1
+GRMOD
+"                                                  "
+16
+14
+ATEXT Z
+0
+GRMOD
+RCL 48
+STO 34
+" "
+x→α 34
+RCL 84
+x→α 34
+"  "
+x→α 34
+RCL 80
+αIP 34
+"/"
+x→α 34
+RCL 77
+αIP 34
+RCL 49
+X≠0?
+XEQ :DST:
+RCL 50
+27
+X=Y?
+XEQ :DSTVAR:
+RCL 34
+16
+14
+ATEXT Z
+RTN
+REM LBL :DSTVAR: a city whose DST follows no rule (Casablanca): standard time shown
+LBL :DSTVAR:
+"  DST varies"
+x→α 34
+RTN
+REM LBL :DST: "  summer +1 h" (DST on now) or "  winter, DST +1 h" appended to R34
+LBL :DST:
+RCL 59
+RCL 28
+X=Y?
+IF
+  "  winter, DST "
+ELSE
+  "  summer "
+ENDIF
+x→α 34
+RCL 49
+XEQ :OFFS:
+" h"
+x→α 34
+RTN
+REM LBL :SAME: the text "same time"; LBL :DIFF: the difference R39 and " h"
+LBL :SAME:
+"same time"
+STO 34
+RTN
+LBL :DIFF:
+" "
+STO 34
+RCL 39
+XEQ :OFFS:
+" h"
+x→α 34
+RTN
+REM ---- LBL :OFFS: the offset X appended to R34: the sign, the hours, ":mm" when it has minutes ----
+LBL :OFFS:
+STO 38
+X<0?
+IF
+  "-"
+ELSE
+  "+"
+ENDIF
+x→α 34
+RCL 38
+ABS
+STO 38
+αIP 34
+RCL 38
+FP
+X≠0?
+IF
+  ":"
+  x→α 34
+  RCL 38
+  FP
+  60
+  ×
+  0.5
+  +
+  IP
+  XEQ :TWO:
+ENDIF
+RTN
+REM ---- LBL :TWO: X (0-99) appended to R34 in two digits ----
+LBL :TWO:
+STO 40
+10
+X>Y?
+IF
+  "0"
+  x→α 34
+ENDIF
+RCL 40
+αIP 34
+RTN
+REM ---- LBL :HHMM: the time of the JD in X appended to R34 as hh:mm ----
+LBL :HHMM:
+0.5
++
+1
+MOD
+1440
+×
+0.0001
++
+IP
+STO 41
+60
+÷
+IP
+XEQ :TWO:
+":"
+x→α 34
+RCL 41
+60
+MOD
+XEQ :TWO:
+RTN
+REM ---- LBL :DATE: the date of the JD in X in R34: "Fri 23 Oct" (LBL :CAL:; the weekday N + 1 mod 7,
+REM 0 Sunday) ----
+LBL :DATE:
+XEQ :CAL:
+RCL 44
+1
++
+7
+MOD
+3
+×
+XEQ :NAME3:
+STO 34
+" "
+x→α 34
+RCL 60
+αIP 34
+" "
+x→α 34
+RCL 61
+3
+×
+18
++
+XEQ :NAME3:
+x→α 34
+RTN
+REM ---- LBL :CAL: the calendar date of the JD in X (Fliegel and Van Flandern): R44 the day number
+REM N = IP(JD + 0.5), R60 the day, R61 the month, R62 the year. a = N + 32044, b = (4a + 3) div 146097,
+REM c = a - 146097b div 4, d = (4c + 3) div 1461, e = c - 1461d div 4, m = (5e + 2) div 153 (R45 a, c, e;
+REM R46 b; R47 d; R55 m) ----
+LBL :CAL:
+0.5
++
+IP
+STO 44
+32044
++
+STO 45
+4
+×
+3
++
+146097
+÷
+IP
+STO 46
+146097
+×
+4
+÷
+IP
+STO- 45
+RCL 45
+4
+×
+3
++
+1461
+÷
+IP
+STO 47
+1461
+×
+4
+÷
+IP
+STO- 45
+RCL 45
+5
+×
+2
++
+153
+÷
+IP
+STO 55
+REM the day = e - (153m + 2) div 5 + 1
+153
+×
+2
++
+5
+÷
+IP
+RCL 45
+X<>Y
+-
+1
++
+STO 60
+REM the month = m + 3 - 12 (m div 10); the year = 100b + d - 4800 + m div 10
+RCL 55
+10
+÷
+IP
+STO 56
+-12
+×
+RCL 55
++
+3
++
+STO 61
+RCL 46
+100
+×
+RCL 47
++
+4800
+-
+RCL 56
++
+STO 62
+RTN
+REM LBL :NAME3: 3 letters from position X of R42 (the days at 0, the months at 21 + 3 (month - 1)):
+REM the names copied to R47, X letters off the left (αSL), the 3 left ones (αLEFT) in X
+LBL :NAME3:
+RCL 42
+STO 47
+R↓
+αSL 47
+3
+αLEFT 47
+RTN
+REM ---- LBL :INIT: the start: TZ, the patterns, the map, the scale, the keys, the zone of TZ ----
+LBL :INIT:
+WSIZE 64
+0
+STO+ "TZ"
+REM TZ = 0: new, or the clock on UT: ask for it (INPUT as NAVFULL: the prompt in ALPHA, R/S keeps it)
+RCL "TZ"
+X=0?
+XEQ :ASKTZ:
+RCL "TZ"
+STO 30
+REM 64 ones and 10 ones (the band), 3 ones (a tick)
+1111111111111111111111111111111111111111111111111111111111111111#2
+STO 23
+1111111111#2
+STO 24
+111#2
+STO 26
+"SunMonTueWedThuFriSatJanFebMarAprMayJunJulAugSepOctNovDec"
+STO 42
+REM the DST rule letters of the city entries: - none, A-Z the rules 1-26, * none that follows a rule
+"-ABCDEFGHIJKLMNOPQRSTUVWXYZ*"
+STO 81
+-1
+STO 36
+CLLCD
+0
+GRMOD
+XEQ :MAP:
+XEQ :SCALE:
+REM ==== NSTOPS (written by tools/build_zone47.py: the number of stops)
+STO 43
+REM the home stop: the one nearest to TZ by its offset now, DST included (of two as near: the one
+REM without DST on, then the first), R37
+XEQ :CLOCK:
+XEQ :NEAR:
+RCL 37
+STO 32
+XEQ :REC:
+XEQ :HOME:
+XEQ :BAND:
+XEQ :TICK:
+RTN
+REM LBL :ASKTZ: TZ asked: hours from UT of the clock, DST included (3 for UT+3, 0 for UT)
+LBL :ASKTZ:
+"TZ=CLOCK-UT h, R/S"
+INPUT "TZ"
+RTN
+REM LBL :RECX: the stop's label only: R28 the offset, R29 the column (the cities stored, none taken out)
+LBL :RECX:
+XEQ IND 32
+STO 28
+R↓
+STO 29
+RTN
+REM LBL :NEAR: every stop (its first city), nn down to 1: the distance to TZ in R38, the nearest so far in R39, its stop in R37
+LBL :NEAR:
+RCL 43
+STO 27
+99
+STO 39
+DO
+  RCL 27
+  STO 32
+  REM a stop more than 1.5 h from TZ: its standard offset's distance (DST adds 1 h at most); a nearer one:
+  REM its first city and its offset now (LBL :NEAR2:)
+XEQ :RECX:
+RCL 28
+RCL 30
+-
+ABS
+STO 38
+1.5
+X≥Y?
+XEQ :NEAR2:
+RCL 39
+RCL 38
+X≤Y?
+XEQ :BEST:
+DSE 27
+WHILE
+ENDDO
+RTN
+REM LBL :NEAR2: the distance of a stop near TZ, from its first city
+LBL :NEAR2:
+1
+STO 80
+XEQ :CITY:
+XEQ :NOWOFF:
+REM the distance: |offset now - TZ| + 0.01 (DST on) or |standard offset - TZ|, the smaller: of two as
+REM near, the one on standard time (TZ 3 in October: Moscow, not Cairo; TZ -5: Bogota's stop, not Chicago)
+RCL 59
+RCL 30
+-
+ABS
+RCL 59
+RCL 28
+-
+100
+÷
++
+STO 38
+RCL 28
+RCL 30
+-
+ABS
+RCL 38
+X>Y?
+X<>Y
+STO 38
+RTN
+REM LBL :BEST: this stop is the nearest so far
+LBL :BEST:
+RCL 38
+STO 39
+RCL 27
+STO 37
+RTN
+REM ---- LBL :HOME: a triangle under the column of the home stop (R29), rows 38-40, centre x 26 + 15c ----
+LBL :HOME:
+RCL 29
+15
+×
+24
++
+STO 25
+1#2
+STO 38
+11#2
+STO 39
+111#2
+STO 40
+38
+RCL 25
+AGRAPH 38
+AGRAPH 39
+AGRAPH 40
+AGRAPH 39
+AGRAPH 38
+RTN
+REM ---- LBL :SCALE: the ticks between the zones (x 19 + 15m, rows 56-58), the zone numbers (even zones,
+REM tinyFont), the keys ----
+LBL :SCALE:
+56
+19
+25
+STO 27
+DROP
+DO
+  AGRAPH 26
+  14
+  +
+  DSE 27
+WHILE
+ENDDO
+10
+GRFNT
+REM ==== LABELS (written by tools/build_zone47.py: the zone numbers, string row x ATEXT Z)
+"4: WEST   5: EAST   8 2: CITY   0: END   TZ = clock - UT"
+4
+14
+ATEXT Z
+RTN
+REM ---- LBL :MAP: the dot map, one dot column a step group: the bands of rows 151, 106, 61 up (Z, Y, X),
+REM then XEQ :COL:. R25 the x of the column ----
+LBL :MAP:
+20
+STO 25
+REM ==== MAP (written by tools/build_zone47.py from python/worldmap.py)
+RTN
+REM LBL :COL: one dot column: each band (SINT: the pattern as a short integer for AGRAPH) drawn twice
+REM (the dots are 2 x 2), then x + 3
+LBL :COL:
+SINT
+STO 20
+DROP
+SINT
+STO 21
+DROP
+SINT
+STO 22
+DROP
+61
+RCL 25
+AGRAPH 20
+AGRAPH 20
+106
+RCL 25
+AGRAPH 21
+AGRAPH 21
+151
+RCL 25
+AGRAPH 22
+AGRAPH 22
+3
+STO+ 25
+RTN
+REM ==== STOPS (written by tools/build_zone47.py from python/zones.py: LBL nn, the city texts STO 72-74,
+REM the numbers STO 75-77, the column, the offset, RTN; then the DST rules LBL 40 + r: the end hour, end code,
+REM start hour, start code + 20000 DST, RTN)
+END
