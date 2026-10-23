@@ -135,10 +135,7 @@ REM ---- LBL :REC: the record of the stop R32 (XEQ IND 32): R28 the offset, R29 
 REM stores its cities in R72-R74 (texts of up to 196 characters) and the numbers R75 (the cities in R72),
 REM R76 (in R72 and R73), R77 (all). Then its first city (R80 = 1) ----
 LBL :REC:
-XEQ IND 32
-STO 28
-R↓
-STO 29
+XEQ :RECX:
 1
 STO 80
 REM ---- LBL :CITY: the city R80 of the stop: its entry "rCCname" (r the DST rule letter, CC the country)
@@ -893,6 +890,13 @@ LBL :ASKTZ:
 "TZ=CLOCK-UT h, R/S"
 INPUT "TZ"
 RTN
+REM LBL :RECX: the stop's label only: R28 the offset, R29 the column (the cities stored, none taken out)
+LBL :RECX:
+XEQ IND 32
+STO 28
+R↓
+STO 29
+RTN
 REM LBL :NEAR: every stop (its first city), nn down to 1: the distance to TZ in R38, the nearest so far in R39, its stop in R37
 LBL :NEAR:
 RCL 43
@@ -902,35 +906,52 @@ STO 39
 DO
   RCL 27
   STO 32
-  XEQ :REC:
-  XEQ :NOWOFF:
-  REM the distance: |offset now - TZ| + 0.01 (DST on) or |standard offset - TZ|, the smaller: of two as
-  REM near, the one on standard time (TZ 3 in October: Moscow, not Cairo; TZ -5: Bogota's stop, not Chicago)
-  RCL 59
-  RCL 30
-  -
-  ABS
-  RCL 59
-  RCL 28
-  -
-  100
-  ÷
-  +
-  STO 38
-  RCL 28
-  RCL 30
-  -
-  ABS
-  RCL 38
-  X>Y?
-  X<>Y
-  STO 38
-  RCL 39
-  X≥Y?
-  XEQ :BEST:
-  DSE 27
+  REM a stop more than 1.5 h from TZ: its standard offset's distance (DST adds 1 h at most); a nearer one:
+  REM its first city and its offset now (LBL :NEAR2:)
+XEQ :RECX:
+RCL 28
+RCL 30
+-
+ABS
+STO 38
+1.5
+X≥Y?
+XEQ :NEAR2:
+RCL 39
+RCL 38
+X≤Y?
+XEQ :BEST:
+DSE 27
 WHILE
 ENDDO
+RTN
+REM LBL :NEAR2: the distance of a stop near TZ, from its first city
+LBL :NEAR2:
+1
+STO 80
+XEQ :CITY:
+XEQ :NOWOFF:
+REM the distance: |offset now - TZ| + 0.01 (DST on) or |standard offset - TZ|, the smaller: of two as
+REM near, the one on standard time (TZ 3 in October: Moscow, not Cairo; TZ -5: Bogota's stop, not Chicago)
+RCL 59
+RCL 30
+-
+ABS
+RCL 59
+RCL 28
+-
+100
+÷
++
+STO 38
+RCL 28
+RCL 30
+-
+ABS
+RCL 38
+X>Y?
+X<>Y
+STO 38
 RTN
 REM LBL :BEST: this stop is the nearest so far
 LBL :BEST:
