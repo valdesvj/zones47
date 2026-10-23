@@ -81,7 +81,7 @@ The stops come from the computer's tz database (on Linux `/usr/share/zoneinfo`, 
 | `python/zone47sim.py` | runs ZONE47 in the simulator, writes `docs/*.png` |
 | `tests/test_zone47.py` | the tests |
 
-Size: 2 029 steps, about 12 KB; 7 IF and 7 DO, within the original DM42's limit of 10 each, so it should also
+Size: 2 007 steps, about 12 KB; 7 IF and 7 DO, within the original DM42's limit of 10 each, so it should also
 run on a DM42 with the C47 firmware (not tried; Almanac 47's DM42 builds reach 13.5 KB).
 Written with the C47 STRUCT commands (IF / ELSE / ENDIF, DO / WHILE / ENDDO).
 Calculators: C47 / R47 with STRUCT, ATEXT and GRFNT (firmware 00.109.05.00a0.ALPHA or later, as Elements 47).
@@ -134,6 +134,6 @@ east coast) are not drawn yet; the North Atlantic Winter Seasonal Area uses its 
     python3 tests/test_load47.py      # every cell on every season change, the cursor texts of every area
     python3 python/load47sim.py       # docs/LOAD47_*.png
 
-Size: 3 131 steps, about 15.5 KB; no IF, 4 DO. The start draws the map and the zones in about 13 000 steps
+Size: 3 109 steps, about 15.5 KB; no IF, 4 DO. The start draws the map and the zones in about 13 000 steps
 (about 2.2 s at Almanac 47's measured 0.17 ms a step), a cursor move about 370 (0.06 s), a new date 2 000 to
 5 500 (only the areas whose zone changes are drawn again).

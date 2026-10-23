@@ -22,24 +22,9 @@ REM R37 the cursor's area (0: summer zone), R38 the area being run, R39 MMDD of 
 REM area on the date, R41-R53 work, R60-R62 day month year (LBL :CAL:), R72-R80 the area, R88 the day and
 REM month names, R89 the zones drawn, R90-R92 the change.
 LBL "LOAD47"
-REM the user's stack in the local registers (as ELEM47 v1.2.0): X..T, A..D with R↓, then LASTx
-LocR 10
-STO R.00
-R↓
-STO R.01
-R↓
-STO R.02
-R↓
-STO R.03
-R↓
-STO R.04
-R↓
-STO R.05
-R↓
-STO R.06
-R↓
-STO R.07
-R↓
+REM the user's stack in the local registers: STOS R.00 (R.00-R.07, the 8 levels), then LASTx in R.08
+LocR 9
+STOS R.00
 LASTx
 STO R.08
 XEQ :INIT:
@@ -100,14 +85,7 @@ GRFNT
 CLLCD
 RCL R.08
 STO L
-RCL R.07
-RCL R.06
-RCL R.05
-RCL R.04
-RCL R.03
-RCL R.02
-RCL R.01
-RCL R.00
+RCLS R.00
 RTN
 REM ---- LBL :MOVE: the cursor off, one cell (rows 0-44, columns 0-119, around), the cursor on, the texts ----
 LBL :MOVE:
