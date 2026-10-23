@@ -87,6 +87,18 @@
   (Oct 23): the stack and LASTx came back. 22 steps fewer each: ZONE47 2 007, LOAD47 3 109.
 - c47sim: STOS / RCLS copied from Almanac 47 (branch c47sim-stos-rcls). test_zone47, test_load47 ALL OK.
 
+## Oct 23, 2026 - the commented rejig sources build/forum/ZONE47.p47u and LOAD47.p47u (Victor)
+
+- As Almanac 47's build/forum: an '@' header (Index, Author, Version, Source, Tested, Input, Output, then the
+  source's header comments), the steps of build/*.txt indented as the source (STRUCT), the source's REM lines
+  after ';' on the steps they stand before (one comment line a step, in a column; the rest of a long block on the
+  last step of it), label names on LBL / XEQ / GTO (-> :INIT:), notes on the data the build writes (each stop:
+  its UTC offset and map column, each DST rule, each map column; each area of LOAD47 and each cursor row).
+- rejig drops what follows ';', so the .p47 is that of build/*.txt; a line starting with ';' or '#' would be a
+  REM step (Almanac 47 DEVELOPMENT_NOTES): none. tests/test_forum.py checks the steps against build/ and the header.
+- tools/build_forum.py, run at the end of tools/build_zone47.py and tools/build_load47.py. Not yet checked with
+  rejig (not in the cloud session): rejig the .p47u and the plain build/*.txt, the two .p47 should be the same size.
+
 ## To do
 
 1. Run on Victor's C47 (convert build/ZONE47.txt with rejig).
