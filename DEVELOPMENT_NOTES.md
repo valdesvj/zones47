@@ -80,6 +80,13 @@
   (X≤Y?), as before. Start 13 200 -> 6 326 steps (about 1.1 s at Almanac 47's 0.17 ms a step), a move 917,
   a city 473.
 
+## Oct 23, 2026 - ZONE47 and LOAD47: the user's stack saved with STOS / RCLS
+
+- From the forum: LocR 9, STOS R.00 (the stack in R.00-R.07), LASTx in R.08; at the end RCL R.08, STO L,
+  RCLS R.00, in place of STO R.00 R↓ ... (8 times) and RCL R.07 ... R.00. Victor ran STOS / RCLS on his C47
+  (Oct 23): the stack and LASTx came back. 22 steps fewer each: ZONE47 2 007, LOAD47 3 109.
+- c47sim: STOS / RCLS copied from Almanac 47 (branch c47sim-stos-rcls). test_zone47, test_load47 ALL OK.
+
 ## To do
 
 1. Run on Victor's C47 (convert build/ZONE47.txt with rejig).
