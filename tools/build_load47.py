@@ -6,7 +6,7 @@ ZONE47 (named labels, STRUCT numbers, listings; its functions). The build fills:
   REM ==== AREAS   the areas, LBL 01-nn: the name STO 72, the season text STO 73, the zone outside the
                    seasons STO 74 (0 summer, 1 tropical, 2 winter), up to two seasons (start MMDD, end MMDD,
                    zone) STO 75-80 (0 when none), XEQ :ZNOW:, then each rectangle 10000000 c0 + 10000 c1 +
-                   100 r0 + r1 and XEQ :RECT:, RTN
+                   (see above)
 Files: programs/LOAD47.txt, build/LOAD47.txt, listings/LOAD47_doc.txt, listings/LOAD47_labels.txt.
   python3 tools/make_loadlines.py && python3 tools/build_load47.py"""
 import os, re, sys
@@ -36,10 +36,10 @@ def season_text(base, seas):
 
 def area_steps():
     from loadzones import AREAS
-    if len(AREAS) > 39:
+    if len(AREAS) > 49:
         raise SystemExit('%d areas: LBL 01-39 only' % len(AREAS))
     out = []
-    for k, (nm, base, seas, rs) in enumerate(AREAS, 1):
+    for k, (nm, base, seas, rs, pc) in enumerate(AREAS, 1):
         if len(seas) > 2 or len({z for _, _, z in seas}) > 1:
             raise SystemExit('%s: at most two seasons of one zone' % nm)
         txt = season_text(base, seas)
@@ -49,9 +49,15 @@ def area_steps():
         sv = [v for s, e, z in seas for v in (s, e, ZONE[z])] + [0] * (6 - 3 * len(seas))
         for r, v in enumerate(sv):
             out += [str(v), 'STO %d' % (75 + r)]
-        out.append('XEQ :ZNOW:')
-        for c0, c1, r0, r1 in rs:
-            out += [str(10000000 * c0 + 10000 * c1 + 100 * r0 + r1), 'XEQ :RECT:']
+        out += ['XEQ :ZNOW:', 'RCL 90', 'X=0?', 'RTN']
+        for w, c0, n, b in pc:
+            out += [str(w), str(n), str(151 - 45 * b), str(20 + 3 * c0), 'XEQ :PC:']
+        out.append('RTN')
+    from loadzones import RUNS
+    for i, r in enumerate(RUNS):
+        out.append('LBL %02d' % (50 + i))
+        for last, a in r:
+            out += [str(100 * last + a), 'XEQ :RUN:']
         out.append('RTN')
     return out
 

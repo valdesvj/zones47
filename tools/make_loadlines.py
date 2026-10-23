@@ -334,6 +334,42 @@ def land(i, j):
     return COLS[j] >> i & 1
 
 
+def pieces(grid, k):
+    """The drawing of area k for LOAD47: per band b (0: dot rows 0-14, 1: 15-29, 2: 30-44) and dot column j,
+    the word of its sea cells' lower dot rows (bit 3m for the dot m from the bottom of the band; land cells
+    left out, so drawing in XOR never touches the land); consecutive columns with the same word joined:
+    (word, first column, number of columns, band)."""
+    out = []
+    for b in range(3):
+        prev = None
+        for j in range(NCOL):
+            w = 0
+            for i in range(15 * b, 15 * b + 15):
+                if grid[i][j] == k and not land(i, j):
+                    w |= 1 << (3 * (15 * b + 14 - i))
+            if w and prev is not None and prev[0] == w:
+                prev[2] += 1
+            elif w:
+                prev = [w, j, 1, b]; out.append(prev)
+            else:
+                prev = None
+    return [tuple(p) for p in out]
+
+
+def runs(grid):
+    """Each dot row as runs [(last column, area)] from column 0 (LOAD47's cursor)."""
+    out = []
+    for row in grid:
+        r = []
+        for j, a in enumerate(row):
+            if r and r[-1][1] == a:
+                r[-1][0] = j
+            else:
+                r.append([j, a])
+        out.append([tuple(x) for x in r])
+    return out
+
+
 def main():
     grid = classify()
     keys = '.TabcdefghiJKLMNW'
@@ -344,21 +380,27 @@ def main():
     for k, (nm, base, seas, _) in enumerate(AREAS, 1):
         cs = {(i, j) for i in range(NROW) for j in range(NCOL) if grid[i][j] == k}
         rs = rects(cs)
-        out.append((nm, base, seas, rs))
-        print('%2d %-34s %s %-28s %3d cells %3d rectangles' % (k, nm, base, seas, len(cs), len(rs)))
+        out.append((nm, base, seas, rs, pieces(grid, k)))
+        print('%2d %-34s %s %-28s %3d cells %3d rectangles %3d pieces' % (
+            k, nm, base, seas, len(cs), len(rs), len(out[-1][4])))
     with open(os.path.join(ROOT, 'python', 'loadzones.py'), 'w') as fh:
         fh.write('"""loadzones.py - the load line areas of LOAD47, written by tools/make_loadlines.py (do not edit).\n'
                  'Load Lines 1966 Annex II (IMO), regulation 47 as MSC.329(90); ships over 100 m. AREAS: (name, zone\n'
-                 'outside the seasons, [(start MMDD, end MMDD, zone)], [(c0, c1, r0, r1) dot columns and rows]);\n'
-                 'GRID[i][j] the area (1..) of dot row i, column j, 0 = summer zone. Indicative, 3 degrees a cell."""\n')
+                 'outside the seasons, [(start MMDD, end MMDD, zone)], [(c0, c1, r0, r1) dot columns and rows],\n'
+                 '[(word, first column, columns, band)] its sea cells by band); GRID[i][j] the area (1..) of dot row\n'
+                 'i, column j, 0 = summer zone; RUNS[i] row i as [(last column, area)]. Indicative, 3 degrees a cell."""\n')
         fh.write('AREAS = [\n')
         for a in out:
             fh.write('    %r,\n' % (a,))
         fh.write(']\nGRID = [\n')
         for row in grid:
             fh.write('    %r,\n' % (row,))
+        fh.write(']\nRUNS = [\n')
+        for r in runs(grid):
+            fh.write('    %r,\n' % (r,))
         fh.write(']\n')
-    print('rectangles: %d' % sum(len(a[3]) for a in out))
+    print('rectangles: %d, pieces: %d, row runs: %d' % (
+        sum(len(a[3]) for a in out), sum(len(a[4]) for a in out), sum(len(r) for r in runs(grid))))
 
 
 if __name__ == '__main__':

@@ -106,3 +106,19 @@
   cursor texts at a cell of each area in January and July, a year on and back the same screen, the stack.
 - To do: the areas for ships of 100 m and under (a key to switch), the cursor on land (say so), Annex II's
   chart against the cells cell by cell, the coordinates of the named places checked.
+
+## Oct 23, 2026 - LOAD47 faster (Victor: "run faster and less steps")
+
+- Profiled by label: the start was 26 000 steps (17 000 in the rectangles: decoding them and 8^m powers per
+  band), a cursor move 4 500 (all 89 rectangles decoded to find its area), a new date 30 000 (the whole screen).
+- Now the build works out the drawing: per area, band and dot column the word of its sea cells' lower rows
+  (land left out), consecutive equal columns joined: 190 pieces, pushed ready as L, n, row, x before
+  XEQ :PC: (no decoding on the calculator; SINT of L and 2L). Drawn in XOR, so the land and the cursor are
+  never touched and drawing again undoes it.
+- The zones drawn are kept in R89 (base 3, a digit an area). A new date runs every area's LBL :ZNOW: and
+  draws only the change: the upper pixels when summer <-> not summer, the lower when winter <-> not winter
+  (R90 = 0..3); an area with no change skips its pieces (RCL 90 X=0? RTN in its label). No CLLCD, no map.
+- The cursor's area: the row labels LBL 50-94, each row as runs (100 last column + area, LBL :RUN:).
+- Steps: start 12 973 (map 3 400 of them), a cursor move 371, a new date about 2 000 (no area changes) to
+  5 500 (three areas change, 23 Oct -> 7 Nov). Size: 3 131 steps, about 15.5 KB (was 9.3 KB: the pieces).
+- Tests as before, all OK.

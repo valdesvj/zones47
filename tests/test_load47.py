@@ -3,7 +3,7 @@
 on dates across the year (each a season change of some area, the day before and the day itself), every sea cell
 of the map drawn in its zone (tropical: the dot's upper left pixel only; winter: upper left and lower right;
 summer: none), the land cells full; the cursor texts (date, position, zone and area, seasons) at cells of every
-area; the user's stack kept and R20-R89 cleared.
+area; the user's stack kept and R20-R92 cleared.
   python3 tools/make_loadlines.py && python3 tools/build_load47.py && python3 tests/test_load47.py"""
 import os, sys
 from datetime import date, timedelta
@@ -30,7 +30,7 @@ def zone(k, d):
     """The zone of area k (0 = the summer zones) on the date d: 'S', 'T' or 'W'."""
     if k == 0:
         return 'S'
-    nm, base, seas, _ = AREAS[k - 1]
+    nm, base, seas = AREAS[k - 1][:3]
     md = d.month * 100 + d.day
     for s, e, z in seas:
         if (s <= md <= e) if s <= e else (md >= s or md <= e):
@@ -86,7 +86,7 @@ def latlon(i, j):
 def main():
     # the dates: every season start and end of every area, the day before and the day itself (2027)
     ds = set()
-    for nm, base, seas, rs in AREAS:
+    for nm, base, seas, rs, pc in AREAS:
         for s, e, z in seas:
             for md in (s, e):
                 d = date(2027, md // 100, md % 100)
@@ -125,7 +125,7 @@ def main():
 
     c, texts = run([L.RIGHT, L.END], d, stack=(1, 2, 3, 4))
     check([int(v) for v in c.s[:4]] == [1, 2, 3, 4], 'stack: %s' % c.s[:4])
-    left = [k for k, v in c.reg.items() if k.isdigit() and 20 <= int(k) <= 89 and v not in (0, '', D(0))]
+    left = [k for k, v in c.reg.items() if k.isdigit() and 20 <= int(k) <= 92 and v not in (0, '', D(0))]
     check(not left, 'registers left: %s' % left)
     check(getattr(c, 'grmod', 0) == 0 and getattr(c, 'grfnt', 20) == 20, 'GRMOD 0, GRFNT 20 at the end')
     print('ALL OK' if not FAIL else '%d FAILED' % len(FAIL))
