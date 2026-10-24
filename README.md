@@ -45,6 +45,12 @@ current year from the date and adds the DST when it is on, northern or southern 
 
 At the ends it goes around: east of +14 is −12, west of −12 is +14.
 
+## Standby
+
+If the calculator goes to standby while ZONE47 (or LOAD47) waits for a key, the key that wakes it ends the
+program cleanly (more than 30 s between two passes of the key wait: the clock is read at each one), so the
+calculator is back in its normal state (a program left waiting could need several presses to come back).
+
 ## TZ: the offset of your clock
 
 The calculator's clock has no time zone, so ZONE47 reads the global variable **TZ** = clock − UT in hours,

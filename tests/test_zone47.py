@@ -161,10 +161,10 @@ def main():
                             cy[0], u, dm, hs[-1] if hs else None, expect(i, 1.5, local, j)))
     print('DST rules checked: %d' % len(seen))
 
-    # the user's stack kept, R20-R84 cleared, GRMOD 0 and GRFNT 20 at the end
+    # the user's stack kept, R20-R86 cleared, GRMOD 0 and GRFNT 20 at the end
     c, texts = run([Z.EAST6, Z.END], tz=3, stack=(1, 2, 3, 4))
     check([int(v) for v in c.s[:4]] == [1, 2, 3, 4], 'stack: %s' % c.s[:4])
-    left = [k for k, v in c.reg.items() if k.isdigit() and 20 <= int(k) <= 84 and v not in (0, '', D(0))]
+    left = [k for k, v in c.reg.items() if k.isdigit() and 20 <= int(k) <= 86 and v not in (0, '', D(0))]
     check(not left, 'registers left: %s' % left)
     check(getattr(c, 'grmod', 0) == 0 and getattr(c, 'grfnt', 20) == 20, 'GRMOD 0, GRFNT 20 at the end')
     print('%d stops, %d cities (tzdata %s), ' % (n, sum(len(z[2]) for z in ZONES), TZDATA)

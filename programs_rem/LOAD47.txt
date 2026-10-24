@@ -7,7 +7,7 @@ REM sea cell, winter two dots on a diagonal, summer nothing (land: the full 2 x 
 REM shows its cell: latitude and longitude of the centre, the zone on the date, the area and its seasons.
 REM INDICATIVE ONLY: 3 degrees a cell; the official boundaries are those of Annex II and its chart.
 REM Keys: 8 4 6 2 the cursor (around at the edges), 7 15 days back, 9 15 days on, 1 the clock's date again,
-REM 0 the end. The user's stack and LASTx are kept; at the end R20-R92 are cleared.
+REM 0 the end. The user's stack and LASTx are kept; at the end R20-R94 are cleared.
 REM Screen 400 x 240, row 0 = bottom. Dot row i (0 the top) at rows 194 - 3i and 193 - 3i, dot column j at
 REM x 20 + 3j and 21 + 3j (as ZONE47). The areas: LBL 01-nn (written by the build), each: its name STO 72,
 REM its season text STO 73, its zone outside the seasons (0 summer, 1 tropical, 2 winter) STO 74, the seasons
@@ -20,7 +20,8 @@ REM Registers: R20-R22 the map bands, R25 x, R30 the date's JD (noon), R31 the d
 REM i, R33 the key, R34 the text, R35 the cursor column j, R36 the mode (0 draw, 2 the texts of an area),
 REM R37 the cursor's area (0: summer zone), R38 the area being run, R39 MMDD of the date, R40 the zone of the
 REM area on the date, R41-R53 work, R60-R62 day month year (LBL :CAL:), R72-R80 the area, R88 the day and
-REM month names, R89 the zones drawn, R90-R92 the change.
+REM month names, R89 the zones drawn, R90-R92 the change, R93 the clock's JD at the last key wait, R94 1 / 0 wait
+REM on / end (the standby check).
 LBL "LOAD47"
 REM the user's stack in the local registers: STOS R.00 (R.00-R.07, the 8 levels), then LASTx in R.08
 LocR 9
@@ -30,9 +31,15 @@ STO R.08
 XEQ :INIT:
 REM ---- keys: 8 4 6 2 the cursor, 7 9 the date, 1 today, 0 the end ----
 DO
+  REM with no key LBL :WAKE: (the standby check) sets R94 = 1 to wait on, 0 to end (R33 = 82, as 0)
   DO
+    0
+    STO 94
     PAUSE 50
     KEY? 33
+    XEQ :WAKE:
+    RCL 94
+    X≠0?
   WHILE
   ENDDO
   RCL 33
@@ -75,8 +82,8 @@ WHILE
   X=Y?
   XEQ :TODAY:
 ENDDO
-REM ---- 0: the end: R20-R92 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
-20.73
+REM ---- 0: the end: R20-R94 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
+20.75
 R-CLR
 0
 GRMOD
@@ -678,9 +685,45 @@ ATEXT Z
 21
 GRFNT
 RTN
+REM ---- LBL :WAKE: the standby check: the calculator's clock (JD, R93 the last pass's); more than 30 s since
+REM the last pass (one is about 5 s): the calculator was in standby, and the key that woke it ends the program
+REM cleanly (R33 = 82, as 0), so it is left in its normal state (a program left waiting went back
+REM to standby at each press). R94 = 1 - (IP(gap / 30 s) not 0) ----
+LBL :WAKE:
+Date→ⅅ
+Time→ℸ
+ⅅℸ→J
+RCL 93
+X<>Y
+STO 93
+X<>Y
+-
+86400
+×
+30
+÷
+IP
+X≠0?
+1
+1
+X<>Y
+-
+STO 94
+1
+RCL 94
+-
+82
+×
+STO 33
+RTN
 REM ---- LBL :INIT: the start: the patterns, the names, the cursor (34.5N 018E: off Libya), the screen ----
 LBL :INIT:
 WSIZE 64
+REM the clock now, for the standby check (LBL :WAKE:)
+Date→ⅅ
+Time→ℸ
+ⅅℸ→J
+STO 93
 1111#2
 STO 26
 "SunMonTueWedThuFriSatJanFebMarAprMayJunJulAugSepOctNovDec"

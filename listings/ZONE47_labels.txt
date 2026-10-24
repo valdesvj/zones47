@@ -28,13 +28,14 @@ ZONE47 local labels: name (programs_rem/ZONE47.txt), number (build/ZONE47.txt), 
 :DATE:     80  the date of the JD in X in R34: "Fri 23 Oct" (LBL :CAL:; the weekday N + 1 mod 7,
 :CAL:      81  the calendar date of the JD in X (Fliegel and Van Flandern): R44 the day number
 :NAME3:    82  3 letters from position X of R42 (the days at 0, the months at 21 + 3 (month - 1)):
-:INIT:     83  the start: TZ, the patterns, the map, the scale, the keys, the zone of TZ
-:ASKTZ:    84  TZ asked: hours from UT of the clock, DST included (3 for UT+3, 0 for UT)
-:RECX:     85  the stop's label only: R28 the offset, R29 the column (the cities stored, none taken out)
-:NEAR:     86  every stop (its first city), nn down to 1: the distance to TZ in R38, the nearest so far i
-:NEAR2:    87  the distance of a stop near TZ, from its first city
-:BEST:     88  this stop is the nearest so far
-:HOME:     89  a triangle under the column of the home stop (R29), rows 38-40, centre x 26 + 15c
-:SCALE:    90  the ticks between the zones (x 19 + 15m, rows 56-58), the zone numbers (even zones,
-:MAP:      91  the dot map, one dot column a step group: the bands of rows 151, 106, 61 up (Z, Y, X),
-:COL:      92  one dot column: each band (SINT: the pattern as a short integer for AGRAPH) drawn twice
+:WAKE:     83  the standby check: the calculator's clock (JD, R85 the last pass's); more than 30 s since
+:INIT:     84  the start: TZ, the patterns, the map, the scale, the keys, the zone of TZ
+:ASKTZ:    85  TZ asked: hours from UT of the clock, DST included (3 for UT+3, 0 for UT)
+:RECX:     86  the stop's label only: R28 the offset, R29 the column (the cities stored, none taken out)
+:NEAR:     87  every stop (its first city), nn down to 1: the distance to TZ in R38, the nearest so far i
+:NEAR2:    88  the distance of a stop near TZ, from its first city
+:BEST:     89  this stop is the nearest so far
+:HOME:     90  a triangle under the column of the home stop (R29), rows 38-40, centre x 26 + 15c
+:SCALE:    91  the ticks between the zones (x 19 + 15m, rows 56-58), the zone numbers (even zones,
+:MAP:      92  the dot map, one dot column a step group: the bands of rows 151, 106, 61 up (Z, Y, X),
+:COL:      93  one dot column: each band (SINT: the pattern as a short integer for AGRAPH) drawn twice
