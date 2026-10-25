@@ -3,7 +3,7 @@
 on dates across the year (each a season change of some area, the day before and the day itself), every sea cell
 of the map drawn in its zone (tropical: the dot's upper left pixel only; winter: upper left and lower right;
 summer: none), the land cells full; the cursor texts (date, position, zone and area, seasons) at cells of every
-area; the user's stack kept and R20-R94 cleared.
+area; the user's stack kept and R20-R92 cleared.
   python3 tools/make_loadlines.py && python3 tools/build_load47.py && python3 tests/test_load47.py"""
 import os, sys
 from datetime import date, timedelta
@@ -125,7 +125,7 @@ def main():
 
     c, texts = run([L.RIGHT, L.END], d, stack=(1, 2, 3, 4))
     check([int(v) for v in c.s[:4]] == [1, 2, 3, 4], 'stack: %s' % c.s[:4])
-    left = [k for k, v in c.reg.items() if k.isdigit() and 20 <= int(k) <= 94 and v not in (0, '', D(0))]
+    left = [k for k, v in c.reg.items() if k.isdigit() and 20 <= int(k) <= 92 and v not in (0, '', D(0))]
     check(not left, 'registers left: %s' % left)
     check(getattr(c, 'grmod', 0) == 0 and getattr(c, 'grfnt', 20) == 20, 'GRMOD 0, GRFNT 20 at the end')
     print('ALL OK' if not FAIL else '%d FAILED' % len(FAIL))

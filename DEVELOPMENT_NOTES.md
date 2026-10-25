@@ -87,18 +87,6 @@
   (Oct 23): the stack and LASTx came back. 22 steps fewer each: ZONE47 2 007, LOAD47 3 109.
 - c47sim: STOS / RCLS copied from Almanac 47 (branch c47sim-stos-rcls). test_zone47, test_load47 ALL OK.
 
-## Oct 24, 2026 - the standby check (Victor: a program waiting for a key went to standby, then needed several
-## presses to come back)
-
-- Thought (not yet confirmed on the C47): the power-off timer runs from the last key, a PAUSE does not reset it,
-  and the press that wakes the calculator does not reach KEY?, so the next PAUSE sends it back to standby.
-- LBL :WAKE: after KEY? with no key: the clock's JD (Date→ⅅ Time→ℸ ⅅℸ→J) against the last pass's; more than
-  30 s: the program ends as with 0 (R33 = 82); the key wait loops on a flag (1 wait on, 0 end). ZONE47: R85 the
-  last JD, R86 the flag, R-CLR 20.67 (R20-R86); LOAD47: R93, R94, R-CLR 20.75 (R20-R94).
-  The same in Logic 47, Elements 47, MH-10M 47 and Watch 47.
-- tests/test_standby.py: 10 min of standby ends ZONE47 and LOAD47 (the stack back, the registers and the screen
-  cleared); 5 s does not. test_zone47 and test_load47: the end ranges R20-R86, R20-R94. All OK.
-
 ## To do
 
 1. Run on Victor's C47 (convert build/ZONE47.txt with rejig).

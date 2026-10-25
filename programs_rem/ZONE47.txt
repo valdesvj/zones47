@@ -15,8 +15,7 @@ REM starts on the stop nearest to TZ, its column marked by a triangle.
 REM Screen 400 x 240, row 0 = bottom (as in Almanac 47). ATEXT in GRFNT 21, the small text in GRFNT 10.
 REM GRMOD and GRFNT take X (rejig writes "GRMOD r" as GRMOD and the number r: Almanac 47).
 REM The user's stack and LASTx are kept (local registers R.00-R.08: STOS R.00, RCLS R.00); at the end the
-REM work registers R20-R86 are cleared (R-CLR), the other registers are the user's. R85 the clock's JD at the
-REM last key wait, R86 1 / 0 wait on / end (the standby check: after a standby the waking key ends the program).
+REM work registers R20-R84 are cleared (R-CLR), the other registers are the user's.
 REM Map: dot column j (0-119) at x 20 + 3j and 21 + 3j, dot row i (0 the top) at rows 194 - 3i, 193 - 3i.
 REM Map column c (0-23: UTC-11 ... UTC+-12) at x 19 + 15c to 33 + 15c, rows 59-196.
 REM The stops: LBL 01-nn (written by the build), each pushes the city (text), DST, the column, the offset.
@@ -38,16 +37,10 @@ XEQ :INIT:
 REM ---- keys: 4 west, 5 or 6 east, 0 the end; other keys ignored ----
 DO
   REM wait for a key: PAUSE 50, KEY? 33 (true: no key yet), as Almanac 47; the clock read each time
-  REM with no key LBL :WAKE: (the standby check) sets R86 = 1 to wait on, 0 to end (R33 = 82, as 0)
   DO
     XEQ :TICK:
-    0
-    STO 86
     PAUSE 50
     KEY? 33
-    XEQ :WAKE:
-    RCL 86
-    X≠0?
   WHILE
   ENDDO
   RCL 33
@@ -76,8 +69,8 @@ WHILE
   X=Y?
   XEQ :CDOWN:
 ENDDO
-REM ---- 0: the end: R20-R86 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
-20.67
+REM ---- 0: the end: R20-R84 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
+20.65
 R-CLR
 0
 GRMOD
@@ -827,45 +820,9 @@ R↓
 3
 αLEFT 47
 RTN
-REM ---- LBL :WAKE: the standby check: the calculator's clock (JD, R85 the last pass's); more than 30 s since
-REM the last pass (one is about 5 s): the calculator was in standby, and the key that woke it ends the program
-REM cleanly (R33 = 82, as 0), so it is left in its normal state (a program left waiting went back
-REM to standby at each press). R86 = 1 - (IP(gap / 30 s) not 0) ----
-LBL :WAKE:
-Date→ⅅ
-Time→ℸ
-ⅅℸ→J
-RCL 85
-X<>Y
-STO 85
-X<>Y
--
-86400
-×
-30
-÷
-IP
-X≠0?
-1
-1
-X<>Y
--
-STO 86
-1
-RCL 86
--
-82
-×
-STO 33
-RTN
 REM ---- LBL :INIT: the start: TZ, the patterns, the map, the scale, the keys, the zone of TZ ----
 LBL :INIT:
 WSIZE 64
-REM the clock now, for the standby check (LBL :WAKE:)
-Date→ⅅ
-Time→ℸ
-ⅅℸ→J
-STO 85
 0
 STO+ "TZ"
 REM TZ = 0: new, or the clock on UT: ask for it (INPUT as NAVFULL: the prompt in ALPHA, R/S keeps it)

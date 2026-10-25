@@ -31,7 +31,6 @@ LOAD47 local labels: name (programs_rem/LOAD47.txt), number (build/LOAD47.txt), 
 :NAME3:    44  3 letters from position X of R88 (the days at 0, the months at 21 + 3 (month - 1))
 :CAL:      45  the calendar date of the JD in X (Fliegel and Van Flandern, as LOAD47): R44 the day number
 :LEGEND:   46  the keys and the patterns (tinyFont), drawn with each date
-:WAKE:     47  the standby check: the calculator's clock (JD, R93 the last pass's); more than 30 s since
-:INIT:     48  the start: the patterns, the names, the cursor (34.5N 018E: off Libya), the screen
-:MAP:      49  the dot map, one dot column a step group (as LOAD47)
-:COL:      95  
+:INIT:     47  the start: the patterns, the names, the cursor (34.5N 018E: off Libya), the screen
+:MAP:      48  the dot map, one dot column a step group (as LOAD47)
+:COL:      49  
