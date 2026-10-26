@@ -9,17 +9,35 @@
 @ Output:  the map with the column of the stop highlighted; its offset, time and date; the clock (TZ) and the
 @ Output:  difference; the city and its DST
 @
-@ Zones 47: the official time zones on the C47 / R47. A dot map of the world in 24 columns of 15 degrees and
-@ one stop per standard offset of the IANA tz database (-12 to +14), each with every country's city and its
-@ daylight saving rule, worked out for the date on the calculator.
+@ ---- What it is ----
+@ Zones 47 shows the world's time zones on a dot map of the world. Each standard offset of the official IANA time
+@ zone database (from UTC-12 to UTC+14) is a stop; at each stop it shows the time and date there, the cities of every
+@ country that uses it, and each city's daylight saving time, worked out for today's date (north and south). The
+@ calculator's own zone is marked, so you can read the difference at a glance.
 @
-@ Keys: 4 the stop west, 5 (or 6) the stop east; 8 2 the city before / after in the stop; 0 the end.
-@ The time is updated every minute while the program waits for a key.
+@ ---- How to use it ----
+@ Load ZONE47 and press XEQ ZONE47. The first time it asks TZ, the offset of your calculator's clock from UT in hours
+@ (4 for UT+4, -5.5 for UT-5:30, summer time included); R/S keeps the value shown. It is kept for the next runs.
+@   4         the stop to the west (a smaller offset)        5 or 6   the stop to the east
+@   8 2       the city before / after in the stop (each with its own daylight saving)
+@   0         the end
+@ The header shows the stop's offset, its time and date, your clock and the difference; under the map the city, its
+@ country and its daylight saving now. The column of the stop is highlighted and a triangle marks your own zone. The
+@ time updates every minute while it waits for a key.
 @
-@ Your stack and LASTx are kept (STOS / RCLS in local registers); the registers R20-R84 are cleared at the end.
-@ Needs a C47 / R47 firmware with ATEXT, GRFNT and the STRUCT commands.
-@ The comments after ';' say what each part does (rejig drops them: they take no memory).
+@ ---- What it changes on your calculator ----
+@ Your stack and LASTx are given back at the end. It uses the registers R20-R84 and clears them at the end; R00-R19
+@ and R85-R99 are yours. It keeps one variable, TZ (your clock's offset; Almanac 47's MOON47 reads the same TZ).
+@ GRMOD 0 and GRFNT 20 are set at the end.
 @
+@ ---- Programs and labels ----
+@ One program, ZONE47, with one global label (ZONE47). The stops (LBL 01-nn, called with XEQ IND), the daylight
+@ saving rules and every routine are local labels. Written with the STRUCT commands, ATEXT and GRFNT of the C47 / R47
+@ firmware (00.109.05.00a0.ALPHA of 5 Oct 2026 or later). The cities and rules come from the computer's tzdata when
+@ the program is built. A city can be added in the program (its stop's list of cities); take care with its daylight
+@ saving rule and the counts, and keep a copy first.
+@
+@ ---- Technical notes (from the commented source) ----
 @ ZONE47 v0.1.0 - Zones 47: the world time zones on the C47 / R47
 @ A dot map of the world (3 degrees a dot, 81N to 54S) in 24 columns of 15 degrees, UTC-11 at the left
 @ to UTC+-12 at the right (the last column: 172.5E to 172.5W). The official time zones: one stop per
@@ -52,13 +70,17 @@
 @
 
 LBL "ZONE47"
-LocR 9                          ; the user's stack in the local registers: STOS R.00 (R.00-R.07, the 8 levels), then LASTx in R.08
+@ the user's stack in the local registers: STOS R.00 (R.00-R.07, the 8 levels), then LASTx in R.08
+LocR 9
 STOS R.00
 LASTx
 STO R.08
 XEQ 83                          ; -> :INIT:
-DO 01                           ; ---- keys: 4 west, 5 or 6 east, 0 the end; other keys ignored ----
-  DO 02                         ; wait for a key: PAUSE 50, KEY? 33 (true: no key yet), as Almanac 47; the clock read each time
+@
+@ ---- keys: 4 west, 5 or 6 east, 0 the end; other keys ignored ----
+DO 01
+@   wait for a key: PAUSE 50, KEY? 33 (true: no key yet), as Almanac 47; the clock read each time
+  DO 02
     XEQ 70                      ; -> :TICK:
     PAUSE 50
     KEY? 33
@@ -72,14 +94,16 @@ WHILE 01
   62
   X=Y?
   XEQ 00                        ; -> :WEST:
-  RCL 33                        ; 5 (63) or 6 (64): |k - 63.5| = 0.5 for these two keys only
+@   5 (63) or 6 (64): |k - 63.5| = 0.5 for these two keys only
+  RCL 33
   63.5
   -
   ABS
   1
   X>Y?
   XEQ 40                        ; -> :EAST:
-  RCL 33                        ; 8 (53) the city before, 2 (73) the city after, in the stop
+@   8 (53) the city before, 2 (73) the city after, in the stop
+  RCL 33
   53
   X=Y?
   XEQ 62                        ; -> :CUP:
@@ -88,7 +112,9 @@ WHILE 01
   X=Y?
   XEQ 63                        ; -> :CDOWN:
 ENDDO 01
-20.65                           ; ---- 0: the end: R20-R84 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
+@
+@ ---- 0: the end: R20-R84 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
+20.65
 R-CLR
 0
 GRMOD
@@ -99,7 +125,9 @@ RCL R.08
 STO L
 RCLS R.00
 RTN
-LBL 00                          ; :WEST:  ---- LBL :WEST: one stop west: the highlight off, the stop - 1 (0 -> nn), the new stop ----
+@
+@ ---- LBL :WEST: one stop west: the highlight off, the stop - 1 (0 -> nn), the new stop ----
+LBL 00                          ; :WEST:
 XEQ 68                          ; -> :BAND:
 RCL 32
 1
@@ -109,12 +137,15 @@ RCL 43
 STO 32
 XEQ 39                          ; -> :MOVED:
 RTN
-LBL 39                          ; :MOVED:  LBL :MOVED: the new stop: its record, the highlight on, the header
+@ LBL :MOVED: the new stop: its record, the highlight on, the header
+LBL 39                          ; :MOVED:
 XEQ 58                          ; -> :REC:
 XEQ 68                          ; -> :BAND:
 XEQ 72                          ; -> :HEAD:
 RTN
-LBL 40                          ; :EAST:  ---- LBL :EAST: one stop east: the stop + 1 (nn + 1 -> 1) ----
+@
+@ ---- LBL :EAST: one stop east: the stop + 1 (nn + 1 -> 1) ----
+LBL 40                          ; :EAST:
 XEQ 68                          ; -> :BAND:
 RCL 32
 RCL 43
@@ -124,13 +155,21 @@ MOD
 STO 32
 XEQ 39                          ; -> :MOVED:
 RTN
-LBL 58                          ; :REC:  ---- LBL :REC: the record of the stop R32 (XEQ IND 32): R28 the offset, R29 the column; the label
-XEQ 85                          ; -> :RECX:  stores its cities in R72-R74 (texts of up to 196 characters) and the numbers R75 (the cities in R72),
-1                               ; R76 (in R72 and R73), R77 (all). Then its first city (R80 = 1) ----
+@
+@ ---- LBL :REC: the record of the stop R32 (XEQ IND 32): R28 the offset, R29 the column; the label
+@ stores its cities in R72-R74 (texts of up to 196 characters) and the numbers R75 (the cities in R72),
+@ R76 (in R72 and R73), R77 (all). Then its first city (R80 = 1) ----
+LBL 58                          ; :REC:
+XEQ 85                          ; -> :RECX:
+1
 STO 80
-LBL 59                          ; :CITY:  ---- LBL :CITY: the city R80 of the stop: its entry "rCCname" (r the DST rule letter, CC the country)
-RCL 80                          ; taken out of R72, R73 or R74 (R82 its place there) into R78 with the "/" between the entries:
-STO 82                          ; R50 the rule (the place of r in R81: 0 none, 1-26 LBL 40 + r, 27 irregular), R84 the country, R48 the name ----
+@
+@ ---- LBL :CITY: the city R80 of the stop: its entry "rCCname" (r the DST rule letter, CC the country)
+@ taken out of R72, R73 or R74 (R82 its place there) into R78 with the "/" between the entries:
+@ R50 the rule (the place of r in R81: 0 none, 1-26 LBL 40 + r, 27 irregular), R84 the country, R48 the name ----
+LBL 59                          ; :CITY:
+RCL 80
+STO 82
 RCL 72
 STO 78
 RCL 75
@@ -143,7 +182,8 @@ X>Y?
 XEQ 61                          ; -> :PART3:
 "/"
 x→α 78
-DO 03                           ; the entries before it off: each time the text up to its first "/" off (αSL)
+@ the entries before it off: each time the text up to its first "/" off (αSL)
+DO 03
   RCL 82
   1
   X<Y?
@@ -174,7 +214,8 @@ STO 84
 RCL 78
 STO 48
 RTN
-LBL 60                          ; :PART2:  LBL :PART2:, LBL :PART3: the city is in R73 (place - R75) or R74 (place - R76)
+@ LBL :PART2:, LBL :PART3: the city is in R73 (place - R75) or R74 (place - R76)
+LBL 60                          ; :PART2:
 RCL 73
 STO 78
 RCL 80
@@ -190,7 +231,9 @@ RCL 76
 -
 STO 82
 RTN
-LBL 62                          ; :CUP:  ---- LBL :CUP: the city before (1 -> the last), LBL :CDOWN: the city after (the last -> 1); the header ----
+@
+@ ---- LBL :CUP: the city before (1 -> the last), LBL :CDOWN: the city after (the last -> 1); the header ----
+LBL 62                          ; :CUP:
 RCL 80
 1
 -
@@ -210,11 +253,17 @@ STO 80
 XEQ 59                          ; -> :CITY:
 XEQ 72                          ; -> :HEAD:
 RTN
-LBL 64                          ; :NOWOFF:  ---- LBL :NOWOFF: R59 = the offset of the city now: R28, + R49 when its rule R50 has DST on at the UT
-RCL 28                          ; R31 (rule 0 or 27: none, R49 = 0). The rule (LBL 40 + r) pushes the end hour, the end code, the start
-STO 59                          ; hour, the start code + 20000 x DST (h); a code
-0                               ; is 100 month + 10 n + weekday (n 1-4, 5 the last; weekday 0 Sunday), the hours in standard time.
-STO 49                          ; R53 the start, R54 the end (JDs in the stop's standard time) in the year of R57 = R31 + R28/24 (the stop's standard time now) ----
+@
+@ ---- LBL :NOWOFF: R59 = the offset of the city now: R28, + R49 when its rule R50 has DST on at the UT
+@ R31 (rule 0 or 27: none, R49 = 0). The rule (LBL 40 + r) pushes the end hour, the end code, the start
+@ hour, the start code + 20000 x DST (h); a code
+@ is 100 month + 10 n + weekday (n 1-4, 5 the last; weekday 0 Sunday), the hours in standard time.
+@ R53 the start, R54 the end (JDs in the stop's standard time) in the year of R57 = R31 + R28/24 (the stop's standard time now) ----
+LBL 64                          ; :NOWOFF:
+RCL 28
+STO 59
+0
+STO 49
 RCL 50
 X=0?
 RTN
@@ -240,7 +289,8 @@ R↓
 STO 63
 R↓
 STO 64
-RCL 56                          ; the start code + 20000 DST: R49 the DST in hours
+@ the start code + 20000 DST: R49 the DST in hours
+RCL 56
 10000
 ÷
 IP
@@ -259,8 +309,10 @@ RCL 64
 STO 58
 XEQ 66                          ; -> :TRANS:
 STO 54
-RCL 53                          ; north (start < end): on from the start to the end; south (the end first): on from the start, or
-RCL 54                          ; before the end
+@ north (start < end): on from the start to the end; south (the end first): on from the start, or
+@ before the end
+RCL 53
+RCL 54
 X>Y?
 IF 01
   RCL 53
@@ -283,15 +335,20 @@ ELSE 01
   XEQ 65                        ; -> :DSTON:
 ENDIF 01
 RTN
-LBL 65                          ; :DSTON:  LBL :DSTON: DST on: R59 = R28 + R49
+@ LBL :DSTON: DST on: R59 = R28 + R49
+LBL 65                          ; :DSTON:
 RCL 49
 RCL 28
 +
 STO 59
 RTN
-LBL 66                          ; :TRANS:  ---- LBL :TRANS: the JD (standard time) of the code R56 at the hour R58 in the year R62:
-RCL 56                          ; n < 5: the first weekday w of the month from its 1st (R65), + 7 (n - 1); n = 5: the last w back from the
-10                              ; last day of the month (the 1st of month + 1, - 1) ----
+@
+@ ---- LBL :TRANS: the JD (standard time) of the code R56 at the hour R58 in the year R62:
+@ n < 5: the first weekday w of the month from its 1st (R65), + 7 (n - 1); n = 5: the last w back from the
+@ last day of the month (the 1st of month + 1, - 1) ----
+LBL 66                          ; :TRANS:
+RCL 56
+10
 MOD
 STO 66
 RCL 56
@@ -359,9 +416,13 @@ RCL 58
 ÷
 +
 RTN
-LBL 67                          ; :JDN:  ---- LBL :JDN: the day number of the 1st of the month X (13 = January of the next year) of the year R62:
-STO 70                          ; a = (14 - m) div 12, y = Y + 4800 - a, m' = m + 12a - 3, N = 1 + (153m' + 2) div 5 + 365y + y div 4
-14                              ; - y div 100 + y div 400 - 32045 (R68 a, R69 y, R70 m') ----
+@
+@ ---- LBL :JDN: the day number of the 1st of the month X (13 = January of the next year) of the year R62:
+@ a = (14 - m) div 12, y = Y + 4800 - a, m' = m + 12a - 3, N = 1 + (153m' + 2) div 5 + 365y + y div 4
+@ - y div 100 + y div 400 - 32045 (R68 a, R69 y, R70 m') ----
+LBL 67                          ; :JDN:
+STO 70
+14
 X<>Y
 -
 12
@@ -409,8 +470,11 @@ IP
 32044
 -
 RTN
-LBL 68                          ; :BAND:  ---- LBL :BAND: the column R29 inverted (XOR): 15 pixel columns of 138 rows, 59-196,
-3                               ; in three passes (64 + 64 + 10 rows); twice = off ----
+@
+@ ---- LBL :BAND: the column R29 inverted (XOR): 15 pixel columns of 138 rows, 59-196,
+@ in three passes (64 + 64 + 10 rows); twice = off ----
+LBL 68                          ; :BAND:
+3
 GRMOD
 RCL 29
 15
@@ -437,7 +501,8 @@ ENDDO 04
 0
 GRMOD
 RTN
-LBL 69                          ; :R64:  LBL :R64: 15 columns of 64 rows from Y (row), X (column)
+@ LBL :R64: 15 columns of 64 rows from Y (row), X (column)
+LBL 69                          ; :R64:
 15
 STO 27
 DROP
@@ -447,7 +512,9 @@ DO 05
 WHILE 05
 ENDDO 05
 RTN
-LBL 70                          ; :TICK:  ---- LBL :TICK: the clock (LBL :CLOCK:); a new minute: the header ----
+@
+@ ---- LBL :TICK: the clock (LBL :CLOCK:); a new minute: the header ----
+LBL 70                          ; :TICK:
 XEQ 71                          ; -> :CLOCK:
 1440
 ×
@@ -461,7 +528,8 @@ R↓
 STO 36
 XEQ 72                          ; -> :HEAD:
 RTN
-LBL 71                          ; :CLOCK:  LBL :CLOCK: R31 = the JD of UT now (the clock - TZ hours), also in X
+@ LBL :CLOCK: R31 = the JD of UT now (the clock - TZ hours), also in X
+LBL 71                          ; :CLOCK:
 Date→ⅅ
 Time→ℸ
 ⅅℸ→J
@@ -471,8 +539,11 @@ RCL 30
 -
 STO 31
 RTN
-LBL 72                          ; :HEAD:  ---- LBL :HEAD: the header (rows 197 up cleared): line 1 the zone, its time and date; line 2 TZ, the
-XEQ 64                          ; -> :NOWOFF:  clock's time and the difference zone - TZ ----
+@
+@ ---- LBL :HEAD: the header (rows 197 up cleared): line 1 the zone, its time and date; line 2 TZ, the
+@ clock's time and the difference zone - TZ ----
+LBL 72                          ; :HEAD:
+XEQ 64                          ; -> :NOWOFF:
 197
 0
 CLLCDxy
@@ -489,7 +560,8 @@ RCL 34
 218
 14
 ATEXT Z
-RCL 59                          ; the zone's JD (R35), its time and date (its offset now, R59: DST added when it is on)
+@ the zone's JD (R35), its time and date (its offset now, R59: DST added when it is on)
+RCL 59
 24
 ÷
 RCL 31
@@ -509,7 +581,8 @@ RCL 34
 218
 250
 ATEXT Z
-"TZ "                           ; line 2: TZ (the clock), the clock's time, the difference
+@ line 2: TZ (the clock), the clock's time, the difference
+"TZ "
 STO 34
 RCL 30
 XEQ 77                          ; -> :OFFS:
@@ -542,8 +615,10 @@ RCL 34
 198
 250
 ATEXT Z
-1                               ; line 3, under the map: the city and its DST. First 50 spaces in GRMOD 1 (7 columns each: x 14-363)
-GRMOD                           ; clear the line before
+@ line 3, under the map: the city and its DST. First 50 spaces in GRMOD 1 (7 columns each: x 14-363)
+@ clear the line before
+1
+GRMOD
 "                                                  "
 16
 14
@@ -576,11 +651,13 @@ RCL 34
 14
 ATEXT Z
 RTN
-LBL 73                          ; :DSTVAR:  LBL :DSTVAR: a city whose DST follows no rule (Casablanca): standard time shown
+@ LBL :DSTVAR: a city whose DST follows no rule (Casablanca): standard time shown
+LBL 73                          ; :DSTVAR:
 "  DST varies"
 x→α 34
 RTN
-LBL 74                          ; :DST:  LBL :DST: "  summer +1 h" (DST on now) or "  winter, DST +1 h" appended to R34
+@ LBL :DST: "  summer +1 h" (DST on now) or "  winter, DST +1 h" appended to R34
+LBL 74                          ; :DST:
 RCL 59
 RCL 28
 X=Y?
@@ -595,7 +672,8 @@ XEQ 77                          ; -> :OFFS:
 " h"
 x→α 34
 RTN
-LBL 75                          ; :SAME:  LBL :SAME: the text "same time"; LBL :DIFF: the difference R39 and " h"
+@ LBL :SAME: the text "same time"; LBL :DIFF: the difference R39 and " h"
+LBL 75                          ; :SAME:
 "same time"
 STO 34
 RTN
@@ -607,7 +685,9 @@ XEQ 77                          ; -> :OFFS:
 " h"
 x→α 34
 RTN
-LBL 77                          ; :OFFS:  ---- LBL :OFFS: the offset X appended to R34: the sign, the hours, ":mm" when it has minutes ----
+@
+@ ---- LBL :OFFS: the offset X appended to R34: the sign, the hours, ":mm" when it has minutes ----
+LBL 77                          ; :OFFS:
 STO 38
 X<0?
 IF 05
@@ -636,7 +716,9 @@ IF 06
   XEQ 78                        ; -> :TWO:
 ENDIF 06
 RTN
-LBL 78                          ; :TWO:  ---- LBL :TWO: X (0-99) appended to R34 in two digits ----
+@
+@ ---- LBL :TWO: X (0-99) appended to R34 in two digits ----
+LBL 78                          ; :TWO:
 STO 40
 10
 X>Y?
@@ -647,7 +729,9 @@ ENDIF 07
 RCL 40
 αIP 34
 RTN
-LBL 79                          ; :HHMM:  ---- LBL :HHMM: the time of the JD in X appended to R34 as hh:mm ----
+@
+@ ---- LBL :HHMM: the time of the JD in X appended to R34 as hh:mm ----
+LBL 79                          ; :HHMM:
 0.5
 +
 1
@@ -669,8 +753,11 @@ RCL 41
 MOD
 XEQ 78                          ; -> :TWO:
 RTN
-LBL 80                          ; :DATE:  ---- LBL :DATE: the date of the JD in X in R34: "Fri 23 Oct" (LBL :CAL:; the weekday N + 1 mod 7,
-XEQ 81                          ; -> :CAL:  0 Sunday) ----
+@
+@ ---- LBL :DATE: the date of the JD in X in R34: "Fri 23 Oct" (LBL :CAL:; the weekday N + 1 mod 7,
+@ 0 Sunday) ----
+LBL 80                          ; :DATE:
+XEQ 81                          ; -> :CAL:
 RCL 44
 1
 +
@@ -694,10 +781,15 @@ RCL 61
 XEQ 82                          ; -> :NAME3:
 x→α 34
 RTN
-LBL 81                          ; :CAL:  ---- LBL :CAL: the calendar date of the JD in X (Fliegel and Van Flandern): R44 the day number
-0.5                             ; N = IP(JD + 0.5), R60 the day, R61 the month, R62 the year. a = N + 32044, b = (4a + 3) div 146097,
-+                               ; c = a - 146097b div 4, d = (4c + 3) div 1461, e = c - 1461d div 4, m = (5e + 2) div 153 (R45 a, c, e;
-IP                              ; R46 b; R47 d; R55 m) ----
+@
+@ ---- LBL :CAL: the calendar date of the JD in X (Fliegel and Van Flandern): R44 the day number
+@ N = IP(JD + 0.5), R60 the day, R61 the month, R62 the year. a = N + 32044, b = (4a + 3) div 146097,
+@ c = a - 146097b div 4, d = (4c + 3) div 1461, e = c - 1461d div 4, m = (5e + 2) div 153 (R45 a, c, e;
+@ R46 b; R47 d; R55 m) ----
+LBL 81                          ; :CAL:
+0.5
++
+IP
 STO 44
 32044
 +
@@ -740,7 +832,8 @@ RCL 45
 ÷
 IP
 STO 55
-153                             ; the day = e - (153m + 2) div 5 + 1
+@ the day = e - (153m + 2) div 5 + 1
+153
 ×
 2
 +
@@ -753,7 +846,8 @@ X<>Y
 1
 +
 STO 60
-RCL 55                          ; the month = m + 3 - 12 (m div 10); the year = 100b + d - 4800 + m div 10
+@ the month = m + 3 - 12 (m div 10); the year = 100b + d - 4800 + m div 10
+RCL 55
 10
 ÷
 IP
@@ -776,24 +870,30 @@ RCL 56
 +
 STO 62
 RTN
-LBL 82                          ; :NAME3:  LBL :NAME3: 3 letters from position X of R42 (the days at 0, the months at 21 + 3 (month - 1)):
-RCL 42                          ; the names copied to R47, X letters off the left (αSL), the 3 left ones (αLEFT) in X
+@ LBL :NAME3: 3 letters from position X of R42 (the days at 0, the months at 21 + 3 (month - 1)):
+@ the names copied to R47, X letters off the left (αSL), the 3 left ones (αLEFT) in X
+LBL 82                          ; :NAME3:
+RCL 42
 STO 47
 R↓
 αSL 47
 3
 αLEFT 47
 RTN
-LBL 83                          ; :INIT:  ---- LBL :INIT: the start: TZ, the patterns, the map, the scale, the keys, the zone of TZ ----
+@
+@ ---- LBL :INIT: the start: TZ, the patterns, the map, the scale, the keys, the zone of TZ ----
+LBL 83                          ; :INIT:
 WSIZE 64
 0
 STO+ "TZ"
-RCL "TZ"                        ; TZ = 0: new, or the clock on UT: ask for it (INPUT as NAVFULL: the prompt in ALPHA, R/S keeps it)
+@ TZ = 0: new, or the clock on UT: ask for it (INPUT as NAVFULL: the prompt in ALPHA, R/S keeps it)
+RCL "TZ"
 X=0?
 XEQ 84                          ; -> :ASKTZ:
 RCL "TZ"
 STO 30
-1111111111111111111111111111111111111111111111111111111111111111#2  ; 64 ones and 10 ones (the band), 3 ones (a tick)
+@ 64 ones and 10 ones (the band), 3 ones (a tick)
+1111111111111111111111111111111111111111111111111111111111111111#2
 STO 23
 1111111111#2
 STO 24
@@ -801,7 +901,8 @@ STO 24
 STO 26
 "SunMonTueWedThuFriSatJanFebMarAprMayJunJulAugSepOctNovDec"
 STO 42
-"-ABCDEFGHIJKLMNOPQRSTUVWXYZ*"  ; the DST rule letters of the city entries: - none, A-Z the rules 1-26, * none that follows a rule
+@ the DST rule letters of the city entries: - none, A-Z the rules 1-26, * none that follows a rule
+"-ABCDEFGHIJKLMNOPQRSTUVWXYZ*"
 STO 81
 -1
 STO 36
@@ -810,10 +911,13 @@ CLLCD
 GRMOD
 XEQ 91                          ; -> :MAP:
 XEQ 90                          ; -> :SCALE:
-38                              ; ==== NSTOPS (written by tools/build_zone47.py: the number of stops)
+@ ==== NSTOPS (written by tools/build_zone47.py: the number of stops)
+38
 STO 43
-XEQ 71                          ; -> :CLOCK:  the home stop: the one nearest to TZ by its offset now, DST included (of two as near: the one
-XEQ 86                          ; -> :NEAR:  without DST on, then the first), R37
+@ the home stop: the one nearest to TZ by its offset now, DST included (of two as near: the one
+@ without DST on, then the first), R37
+XEQ 71                          ; -> :CLOCK:
+XEQ 86                          ; -> :NEAR:
 RCL 37
 STO 32
 XEQ 58                          ; -> :REC:
@@ -821,17 +925,20 @@ XEQ 89                          ; -> :HOME:
 XEQ 68                          ; -> :BAND:
 XEQ 70                          ; -> :TICK:
 RTN
-LBL 84                          ; :ASKTZ:  LBL :ASKTZ: TZ asked: hours from UT of the clock, DST included (3 for UT+3, 0 for UT)
+@ LBL :ASKTZ: TZ asked: hours from UT of the clock, DST included (3 for UT+3, 0 for UT)
+LBL 84                          ; :ASKTZ:
 "TZ=CLOCK-UT h, R/S"
 INPUT "TZ"
 RTN
-LBL 85                          ; :RECX:  LBL :RECX: the stop's label only: R28 the offset, R29 the column (the cities stored, none taken out)
+@ LBL :RECX: the stop's label only: R28 the offset, R29 the column (the cities stored, none taken out)
+LBL 85                          ; :RECX:
 XEQ IND 32
 STO 28
 R↓
 STO 29
 RTN
-LBL 86                          ; :NEAR:  LBL :NEAR: every stop (its first city), nn down to 1: the distance to TZ in R38, the nearest so far in R39, its stop in R37
+@ LBL :NEAR: every stop (its first city), nn down to 1: the distance to TZ in R38, the nearest so far in R39, its stop in R37
+LBL 86                          ; :NEAR:
 RCL 43
 STO 27
 99
@@ -839,8 +946,10 @@ STO 39
 DO 06
   RCL 27
   STO 32
-XEQ 85                          ; -> :RECX:  a stop more than 1.5 h from TZ: its standard offset's distance (DST adds 1 h at most); a nearer one:
-RCL 28                          ; its first city and its offset now (LBL :NEAR2:)
+@ a stop more than 1.5 h from TZ: its standard offset's distance (DST adds 1 h at most); a nearer one:
+@ its first city and its offset now (LBL :NEAR2:)
+XEQ 85                          ; -> :RECX:
+RCL 28
 RCL 30
 -
 ABS
@@ -856,13 +965,16 @@ DSE 27
 WHILE 06
 ENDDO 06
 RTN
-LBL 87                          ; :NEAR2:  LBL :NEAR2: the distance of a stop near TZ, from its first city
+@ LBL :NEAR2: the distance of a stop near TZ, from its first city
+LBL 87                          ; :NEAR2:
 1
 STO 80
 XEQ 59                          ; -> :CITY:
 XEQ 64                          ; -> :NOWOFF:
-RCL 59                          ; the distance: |offset now - TZ| + 0.01 (DST on) or |standard offset - TZ|, the smaller: of two as
-RCL 30                          ; near, the one on standard time (TZ 3 in October: Moscow, not Cairo; TZ -5: Bogota's stop, not Chicago)
+@ the distance: |offset now - TZ| + 0.01 (DST on) or |standard offset - TZ|, the smaller: of two as
+@ near, the one on standard time (TZ 3 in October: Moscow, not Cairo; TZ -5: Bogota's stop, not Chicago)
+RCL 59
+RCL 30
 -
 ABS
 RCL 59
@@ -881,13 +993,16 @@ X>Y?
 X<>Y
 STO 38
 RTN
-LBL 88                          ; :BEST:  LBL :BEST: this stop is the nearest so far
+@ LBL :BEST: this stop is the nearest so far
+LBL 88                          ; :BEST:
 RCL 38
 STO 39
 RCL 27
 STO 37
 RTN
-LBL 89                          ; :HOME:  ---- LBL :HOME: a triangle under the column of the home stop (R29), rows 38-40, centre x 26 + 15c ----
+@
+@ ---- LBL :HOME: a triangle under the column of the home stop (R29), rows 38-40, centre x 26 + 15c ----
+LBL 89                          ; :HOME:
 RCL 29
 15
 ×
@@ -908,8 +1023,11 @@ AGRAPH 40
 AGRAPH 39
 AGRAPH 38
 RTN
-LBL 90                          ; :SCALE:  ---- LBL :SCALE: the ticks between the zones (x 19 + 15m, rows 56-58), the zone numbers (even zones,
-56                              ; tinyFont), the keys ----
+@
+@ ---- LBL :SCALE: the ticks between the zones (x 19 + 15m, rows 56-58), the zone numbers (even zones,
+@ tinyFont), the keys ----
+LBL 90                          ; :SCALE:
+56
 19
 25
 STO 27
@@ -923,7 +1041,8 @@ WHILE 07
 ENDDO 07
 10
 GRFNT
-"-10"                           ; ==== LABELS (written by tools/build_zone47.py: the zone numbers, string row x ATEXT Z)
+@ ==== LABELS (written by tools/build_zone47.py: the zone numbers, string row x ATEXT Z)
+"-10"
 46
 32
 ATEXT Z
@@ -976,10 +1095,14 @@ ATEXT Z
 14
 ATEXT Z
 RTN
-LBL 91                          ; :MAP:  ---- LBL :MAP: the dot map, one dot column a step group: the bands of rows 151, 106, 61 up (Z, Y, X),
-20                              ; then XEQ :COL:. R25 the x of the column ----
+@
+@ ---- LBL :MAP: the dot map, one dot column a step group: the bands of rows 151, 106, 61 up (Z, Y, X),
+@ then XEQ :COL:. R25 the x of the column ----
+LBL 91                          ; :MAP:
+20
 STO 25
-0                               ; ==== MAP (written by tools/build_zone47.py from python/worldmap.py)
+@ ==== MAP (written by tools/build_zone47.py from python/worldmap.py)
+0
 0
 0
 XEQ 92                          ; -> :COL:  dot column 0 (x 20)
@@ -1460,8 +1583,10 @@ XEQ 92                          ; -> :COL:  dot column 118 (x 374)
 0
 XEQ 92                          ; -> :COL:  dot column 119 (x 377)
 RTN
-LBL 92                          ; :COL:  LBL :COL: one dot column: each band (SINT: the pattern as a short integer for AGRAPH) drawn twice
-SINT                            ; (the dots are 2 x 2), then x + 3
+@ LBL :COL: one dot column: each band (SINT: the pattern as a short integer for AGRAPH) drawn twice
+@ (the dots are 2 x 2), then x + 3
+LBL 92                          ; :COL:
+SINT
 STO 20
 DROP
 SINT
@@ -1485,9 +1610,12 @@ AGRAPH 22
 3
 STO+ 25
 RTN
-LBL 01                          ; stop 1: UTC-12, map column 23; its cities "rCCname/..." (r the DST rule, CC the country)  ==== STOPS (written by tools/build_zone47.py from python/zones.py: LBL nn, the city texts STO 72-74,
-"-  at sea"                     ; the numbers STO 75-77, the column, the offset, RTN; then the DST rules LBL 40 + r: the end hour, end code,
-STO 72                          ; start hour, start code + 20000 DST, RTN)
+@ ==== STOPS (written by tools/build_zone47.py from python/zones.py: LBL nn, the city texts STO 72-74,
+@ the numbers STO 75-77, the column, the offset, RTN; then the DST rules LBL 40 + r: the end hour, end code,
+@ start hour, start code + 20000 DST, RTN)
+LBL 01                          ; stop 1: UTC-12, map column 23; its cities "rCCname/..." (r the DST rule, CC the country)
+"-  at sea"
+STO 72
 1
 STO 75
 1

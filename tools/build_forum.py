@@ -6,11 +6,12 @@ folder of a C47 release (as Almanac 47's tools/build_forum.py: '@' header lines,
   build/forum/LOAD47.p47u   the same for LOAD47
 
 The steps are those of build/*.txt, one by one (the same .p47 as the plain listing): indented as the source
-(STRUCT, two spaces a level), the partner numbers written (DO 01 ... ENDDO 01). The comments of the source
-(its REM lines) go after ';' at the end of the steps they stand before, one comment line a step, in a column;
-the name of a label (LBL :INIT:) is given as a comment on its LBL and on each XEQ / GTO to it. rejig drops
-everything after ';', so the comments take no memory. A line that starts with ';' or '#' would become a REM
-step on the calculator (Almanac 47 DEVELOPMENT_NOTES): there are none; the source's header is in '@' lines.
+(STRUCT, two spaces a level), the partner numbers written (DO 01 ... ENDDO 01). After the '@' metadata, the
+narrative of tools/forum/NAME.txt (what the program does and how to use it, in plain words), then the source's
+header as technical notes. The source's comment blocks (its REM lines) are '@' lines before the steps they stand
+before; the name of a label (LBL :INIT:) is given after ';' on its LBL and on each XEQ / GTO to it. rejig compiles
+neither '@' lines nor what follows ';', so the comments take no memory. A line that starts with ';' or '#' would
+become a REM step on the calculator (Almanac 47 DEVELOPMENT_NOTES): there are none.
 
   python3 tools/build_zone47.py && python3 tools/build_load47.py && python3 tools/build_forum.py
   rejig: the .p47 of build/forum/ZONE47.p47u must be the size of the one of build/ZONE47.txt.
@@ -35,17 +36,6 @@ HEAD = {
 @ Output:  the map with the column of the stop highlighted; its offset, time and date; the clock (TZ) and the
 @ Output:  difference; the city and its DST
 @
-@ Zones 47: the official time zones on the C47 / R47. A dot map of the world in 24 columns of 15 degrees and
-@ one stop per standard offset of the IANA tz database (-12 to +14), each with every country's city and its
-@ daylight saving rule, worked out for the date on the calculator.
-@
-@ Keys: 4 the stop west, 5 (or 6) the stop east; 8 2 the city before / after in the stop; 0 the end.
-@ The time is updated every minute while the program waits for a key.
-@
-@ Your stack and LASTx are kept (STOS / RCLS in local registers); the registers R20-R84 are cleared at the end.
-@ Needs a C47 / R47 firmware with ATEXT, GRFNT and the STRUCT commands.
-@ The comments after ';' say what each part does (rejig drops them: they take no memory).
-@
 """,
     'LOAD47': """@ Index:   Load line zones (IMO Load Lines 1966, Annex II) on a world map for a date
 @ Author:  %(author)s
@@ -57,20 +47,18 @@ HEAD = {
 @ Output:  the map with the summer, tropical and winter zones of the date; under it the cell of the cursor:
 @ Output:  latitude and longitude, its zone on the date, the area and its seasons
 @
-@ Load 47: the load line zones and seasonal areas of the world on the C47 / R47, for ships over 100 m.
-@ INDICATIVE ONLY: 3 degrees a cell; the official boundaries are those of Annex II and its chart.
-@
-@ Keys: 8 4 6 2 the cursor; 7 15 days back, 9 15 days on, 1 the clock's date again; 0 the end.
-@
-@ Your stack and LASTx are kept (STOS / RCLS in local registers); the registers R20-R92 are cleared at the end.
-@ Needs a C47 / R47 firmware with ATEXT, GRFNT and the STRUCT commands.
-@ The comments after ';' say what each part does (rejig drops them: they take no memory).
-@
 """,
 }
 
 STEP = re.compile(r'^\s*(\d+)  (.*)$')
 NAMED = re.compile(r'^(\s*)(.*?)\s{4}\((\d+)\)$')            # "XEQ :INIT:    (83)", "DO    (01)"
+
+
+def narrative(name):
+    """tools/forum/NAME.txt: what the program does and how to use it, in plain words, as '@' lines."""
+    fn = os.path.join(ROOT, 'tools', 'forum', name + '.txt')
+    lines = open(fn, encoding='utf-8').read().rstrip('\n').split('\n')
+    return ['@ ' + ln if ln.strip() else '@' for ln in lines] + ['@']
 
 
 def parse(name):
@@ -130,39 +118,31 @@ def build(name):
             names[mm.group(3)] = mm.group(2)[4:]
     out = [(HEAD[name] % dict(author=AUTHOR, version=version, source=SOURCE)).rstrip('\n')]
     data = data_notes(name, plain, names)
+    out += narrative(name)
+    out += ['@ ---- Technical notes (from the commented source) ----']
     out += ['@ ' + h if h else '@' for h in head] + ['@', '']
-    queue, last = [], None
     for k, ((ind, text, n, com), step) in enumerate(zip(steps, plain)):
         if ';' in step or step.lstrip().startswith(('#', '@')):
             raise SystemExit('%s step %d: %r would not survive rejig' % (name, n, step))
-        if com:
-            if queue and last is not None:                       # the rest of the last block: on its last step
-                out[last] += ' ' + ' '.join(queue)
-            queue = list(com)
+        if com:                                                  # the source's comment block: '@' lines (not compiled)
+            if com[0].startswith('----') and out[-1] != '':
+                out.append('@')
+            out += ['@ ' + ind + c if c else '@' for c in com]
         note = ''
         mm = re.fullmatch(r'(LBL|XEQ|GTO) (\d\d)', step)
         if mm and mm.group(2) in names:
             note = names[mm.group(2)] if mm.group(1) == 'LBL' else '-> ' + names[mm.group(2)]
         if k in data:
             note = (note + '  ' if note else '') + data[k]
-        c = queue.pop(0) if queue else ''
-        if note and c:
-            c = note + '  ' + c
-        elif note:
-            c = note
         line = ind + step
-        if c:
-            line = line.ljust(COL) + '; ' + c if len(line) < COL else line + '  ; ' + c
+        if note:
+            line = line.ljust(COL) + '; ' + note if len(line) < COL else line + '  ; ' + note
         out.append(line)
-        if c:
-            last = len(out) - 1
-    if queue and last is not None:
-        out[last] += ' ' + ' '.join(queue)
     os.makedirs(OUT, exist_ok=True)
     fn = os.path.join(OUT, name + '.p47u')
     with open(fn, 'w', encoding='utf-8') as fh:
         fh.write('\n'.join(out).rstrip('\n') + '\n')
-    ncom = sum(1 for ln in out if re.search(r'\s; ', ln))
+    ncom = sum(1 for ln in out if ln.startswith('@ ') or re.search(r'\s; ', ln))
     print('build/forum/%s.p47u  %d steps, %d with a comment, version %s' % (name, len(plain), ncom, version))
     return out
 

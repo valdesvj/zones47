@@ -8,15 +8,30 @@
 @ Output:  the map with the summer, tropical and winter zones of the date; under it the cell of the cursor:
 @ Output:  latitude and longitude, its zone on the date, the area and its seasons
 @
-@ Load 47: the load line zones and seasonal areas of the world on the C47 / R47, for ships over 100 m.
-@ INDICATIVE ONLY: 3 degrees a cell; the official boundaries are those of Annex II and its chart.
+@ ---- What it is ----
+@ Load 47 shows the load line zones and seasonal areas of the world (IMO International Convention on Load Lines
+@ 1966, Annex II, as amended) on a dot map, for a date: which waters are in the Summer, Tropical or Winter zone that
+@ day, for ships over 100 m. A cursor gives a cell's latitude and longitude, its zone on the date, the area and its
+@ seasons. INDICATIVE ONLY: 3 degrees a cell; the official boundaries are those of Annex II and its chart.
 @
-@ Keys: 8 4 6 2 the cursor; 7 15 days back, 9 15 days on, 1 the clock's date again; 0 the end.
+@ ---- How to use it ----
+@ Load LOAD47 and press XEQ LOAD47. It starts on the calculator's date.
+@   8 4 6 2   move the cursor (around at the edges)
+@   7 9       15 days back / on (the zones are drawn again where they change)
+@   1         back to the clock's date
+@   0         the end
+@ On the map: a tropical sea cell has one dot, a winter one two dots on a diagonal, summer nothing; land is solid.
 @
-@ Your stack and LASTx are kept (STOS / RCLS in local registers); the registers R20-R92 are cleared at the end.
-@ Needs a C47 / R47 firmware with ATEXT, GRFNT and the STRUCT commands.
-@ The comments after ';' say what each part does (rejig drops them: they take no memory).
+@ ---- What it changes on your calculator ----
+@ Your stack and LASTx are given back at the end. It uses the registers R20-R92 and clears them at the end; R00-R19
+@ and R93-R99 are yours. No variable or matrix is left behind. GRMOD 0 and GRFNT 20 are set at the end.
 @
+@ ---- Programs and labels ----
+@ One program, LOAD47, with one global label (LOAD47). The areas (LBL 01-nn), the cursor's rows (LBL 50-94, called
+@ with XEQ IND) and every routine are local labels. Written with the STRUCT commands, ATEXT and GRFNT of the C47 / R47
+@ firmware (00.109.05.00a0.ALPHA of 5 Oct 2026 or later).
+@
+@ ---- Technical notes (from the commented source) ----
 @ LOAD47 v0.1.0 - Load 47: the load line zones of the world on the C47 / R47
 @ The International Convention on Load Lines 1966 (IMO), Annex II: zones, areas and seasonal periods
 @ (regulation 47 as amended by MSC.329(90)); ships over 100 m. The dot map of ZONE47 (3 degrees a dot,
@@ -43,12 +58,15 @@
 @
 
 LBL "LOAD47"
-LocR 9                          ; the user's stack in the local registers: STOS R.00 (R.00-R.07, the 8 levels), then LASTx in R.08
+@ the user's stack in the local registers: STOS R.00 (R.00-R.07, the 8 levels), then LASTx in R.08
+LocR 9
 STOS R.00
 LASTx
 STO R.08
 XEQ 47                          ; -> :INIT:
-DO 01                           ; ---- keys: 8 4 6 2 the cursor, 7 9 the date, 1 today, 0 the end ----
+@
+@ ---- keys: 8 4 6 2 the cursor, 7 9 the date, 1 today, 0 the end ----
+DO 01
   DO 02
     PAUSE 50
     KEY? 33
@@ -58,8 +76,10 @@ DO 01                           ; ---- keys: 8 4 6 2 the cursor, 7 9 the date, 1
   82
   X≠Y?
 WHILE 01
-  RCL 33                        ; 8 4 6 2 (53 62 64 73): the row and column steps from the key code, as ELEM47: k div 10 - 6 rows,
-  10                            ; k mod 10 - 3 columns; |dr| + |dc| = 1 for these four keys only
+@   8 4 6 2 (53 62 64 73): the row and column steps from the key code, as ELEM47: k div 10 - 6 rows,
+@   k mod 10 - 3 columns; |dr| + |dc| = 1 for these four keys only
+  RCL 33
+  10
   ÷
   IP
   6
@@ -78,7 +98,8 @@ WHILE 01
   1
   X=Y?
   XEQ 00                        ; -> :MOVE:
-  RCL 33                        ; 7 (52) 15 days back, 9 (54) 15 days on, 1 (72) the clock's date
+@   7 (52) 15 days back, 9 (54) 15 days on, 1 (72) the clock's date
+  RCL 33
   52
   X=Y?
   XEQ 17                        ; -> :BACK:
@@ -91,7 +112,9 @@ WHILE 01
   X=Y?
   XEQ 19                        ; -> :TODAY:
 ENDDO 01
-20.73                           ; ---- 0: the end: R20-R92 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
+@
+@ ---- 0: the end: R20-R92 cleared, GRMOD 0, GRFNT 20, the screen; the user's stack and LASTx back ----
+20.73
 R-CLR
 0
 GRMOD
@@ -102,7 +125,9 @@ RCL R.08
 STO L
 RCLS R.00
 RTN
-LBL 00                          ; :MOVE:  ---- LBL :MOVE: the cursor off, one cell (rows 0-44, columns 0-119, around), the cursor on, the texts ----
+@
+@ ---- LBL :MOVE: the cursor off, one cell (rows 0-44, columns 0-119, around), the cursor on, the texts ----
+LBL 00                          ; :MOVE:
 XEQ 33                          ; -> :CURSOR:
 RCL 32
 RCL 41
@@ -123,8 +148,11 @@ STO 35
 XEQ 33                          ; -> :CURSOR:
 XEQ 34                          ; -> :INFO:
 RTN
-LBL 17                          ; :BACK:  ---- LBL :BACK:, LBL :FWD:, LBL :TODAY: the date - 15, + 15 days, the clock's; then only the areas whose
--15                             ; zone changed are drawn again (LBL :AREAS:), and the texts ----
+@
+@ ---- LBL :BACK:, LBL :FWD:, LBL :TODAY: the date - 15, + 15 days, the clock's; then only the areas whose
+@ zone changed are drawn again (LBL :AREAS:), and the texts ----
+LBL 17                          ; :BACK:
+-15
 STO+ 31
 XEQ 20                          ; -> :NEWDAY:
 RTN
@@ -141,7 +169,9 @@ XEQ 21                          ; -> :DATE:
 XEQ 22                          ; -> :AREAS:
 XEQ 34                          ; -> :INFO:
 RTN
-LBL 21                          ; :DATE:  ---- LBL :DATE: R30 = the JD (noon) of the clock's date + R31 days; R39 = MMDD (LBL :CAL:) ----
+@
+@ ---- LBL :DATE: R30 = the JD (noon) of the clock's date + R31 days; R39 = MMDD (LBL :CAL:) ----
+LBL 21                          ; :DATE:
 Date→ⅅ
 Time→ℸ
 ⅅℸ→J
@@ -159,12 +189,16 @@ RCL 60
 +
 STO 39
 RTN
-LBL 22                          ; :AREAS:  ---- LBL :AREAS: every area (LBL 01-nn, R38) run in mode 0: each one whose zone changed drawn again, in
-0                               ; XOR (GRMOD 3: the cursor and the land are not touched) ----
+@
+@ ---- LBL :AREAS: every area (LBL 01-nn, R38) run in mode 0: each one whose zone changed drawn again, in
+@ XOR (GRMOD 3: the cursor and the land are not touched) ----
+LBL 22                          ; :AREAS:
+0
 STO 36
 3
 GRMOD
-16                              ; ==== NAREAS (written by tools/build_load47.py: the number of areas)
+@ ==== NAREAS (written by tools/build_load47.py: the number of areas)
+16
 STO 38
 DO 03
   XEQ IND 38
@@ -174,8 +208,11 @@ ENDDO 03
 0
 GRMOD
 RTN
-LBL 23                          ; :ZNOW:  ---- LBL :ZNOW: R40 = the zone of the area on the date R39: R74, or the zone of the season the date is
-RCL 74                          ; in (R75-R77, R78-R80; a season from start to end, around the new year when start > end) ----
+@
+@ ---- LBL :ZNOW: R40 = the zone of the area on the date R39: R74, or the zone of the season the date is
+@ in (R75-R77, R78-R80; a season from start to end, around the new year when start > end) ----
+LBL 23                          ; :ZNOW:
+RCL 74
 STO 40
 RCL 75
 RCL 76
@@ -185,10 +222,14 @@ RCL 78
 RCL 79
 RCL 80
 XEQ 24                          ; -> :SEASON:
-0                               ; the change to draw, R90: 0 none, 1 the upper pixels, 2 the lower ones, 3 both. The zone drawn so far, R92,
-STO 90                          ; is the digit k - 1 in base 3 of R89 (0 at the start: nothing drawn); up = sum(new) - sum(old) with
-RCL 36                          ; sum(z) = (z + 1) div 2 (tropical and winter have the upper pixel), low = z div 2 (winter only). Not in
-X≠0?                            ; mode 0 (the texts of an area): R90 = 0, nothing drawn, R89 kept
+@ the change to draw, R90: 0 none, 1 the upper pixels, 2 the lower ones, 3 both. The zone drawn so far, R92,
+@ is the digit k - 1 in base 3 of R89 (0 at the start: nothing drawn); up = sum(new) - sum(old) with
+@ sum(z) = (z + 1) div 2 (tropical and winter have the upper pixel), low = z div 2 (winter only). Not in
+@ mode 0 (the texts of an area): R90 = 0, nothing drawn, R89 kept
+0
+STO 90
+RCL 36
+X≠0?
 RTN
 3
 RCL 38
@@ -238,7 +279,8 @@ ABS
 ×
 STO+ 90
 RTN
-LBL 24                          ; :SEASON:  LBL :SEASON: Z start, Y end, X zone: R40 = X when the date R39 is in the season (start 0: none)
+@ LBL :SEASON: Z start, Y end, X zone: R40 = X when the date R39 is in the season (start 0: none)
+LBL 24                          ; :SEASON:
 STO 43
 R↓
 STO 44
@@ -246,8 +288,10 @@ R↓
 STO 45
 X=0?
 RTN
-0                               ; in the season: (date >= start) + (date <= end) counted in R46; needed 2, or 1 when the season runs over
-STO 46                          ; the new year (start > end)
+@ in the season: (date >= start) + (date <= end) counted in R46; needed 2, or 1 when the season runs over
+@ the new year (start > end)
+0
+STO 46
 RCL 45
 RCL 39
 X≥Y?
@@ -277,10 +321,15 @@ LBL 26                          ; :NEED1:
 1
 STO 49
 RTN
-LBL 27                          ; :PC:  ---- LBL :PC: a piece of the area R38: T = L (the lower rows of its sea cells; the upper rows 2L), Z = n dot
-STO 25                          ; columns, Y = the band's bottom row, X = x of its first column (pushed by the area's label after its
-R↓                              ; RCL 90 X=0? RTN: an area whose zone did not change skips its pieces). Its upper rows at x (LBL :PUP:),
-STO 45                          ; its lower rows at x + 1 (LBL :PLO:), as the change R90 says ----
+@
+@ ---- LBL :PC: a piece of the area R38: T = L (the lower rows of its sea cells; the upper rows 2L), Z = n dot
+@ columns, Y = the band's bottom row, X = x of its first column (pushed by the area's label after its
+@ RCL 90 X=0? RTN: an area whose zone did not change skips its pieces). Its upper rows at x (LBL :PUP:),
+@ its lower rows at x + 1 (LBL :PLO:), as the change R90 says ----
+LBL 27                          ; :PC:
+STO 25
+R↓
+STO 45
 R↓
 STO 46
 R↓
@@ -302,7 +351,8 @@ RCL 90
 X≥Y?
 XEQ 29                          ; -> :PLO:
 RTN
-LBL 28                          ; :PUP:  LBL :PUP: the upper rows, LBL :PLO: the lower rows (x + 1): LBL :PL: with the pattern in R50
+@ LBL :PUP: the upper rows, LBL :PLO: the lower rows (x + 1): LBL :PL: with the pattern in R50
+LBL 28                          ; :PUP:
 RCL 49
 STO 50
 RCL 45
@@ -318,7 +368,8 @@ RCL 25
 +
 XEQ 30                          ; -> :PL:
 RTN
-LBL 30                          ; :PL:  LBL :PL: Y the row, X the column: R46 columns, every third pixel column (AGRAPH moves X on by 1, + 2)
+@ LBL :PL: Y the row, X the column: R46 columns, every third pixel column (AGRAPH moves X on by 1, + 2)
+LBL 30                          ; :PL:
 RCL 46
 STO 47
 R↓
@@ -330,8 +381,11 @@ DO 04
 WHILE 04
 ENDDO 04
 RTN
-LBL 31                          ; :FIND:  ---- LBL :FIND: the area of the cursor's cell (row R32, column R35), R37 (0: summer zone): the row's label
-0                               ; LBL 50 + i, its runs "100 last column + area" in order, each LBL :RUN: (R43 = 1 once found) ----
+@
+@ ---- LBL :FIND: the area of the cursor's cell (row R32, column R35), R37 (0: summer zone): the row's label
+@ LBL 50 + i, its runs "100 last column + area" in order, each LBL :RUN: (R43 = 1 once found) ----
+LBL 31                          ; :FIND:
+0
 STO 37
 STO 43
 RCL 32
@@ -359,8 +413,11 @@ STO 37
 1
 STO 43
 RTN
-LBL 33                          ; :CURSOR:  ---- LBL :CURSOR: the cell R32, R35 inverted (XOR): 4 columns of 4 rows (the dot and the gaps round it,
-3                               ; x 19 + 3j to 22 + 3j, rows 192 - 3i to 195 - 3i); twice = off ----
+@
+@ ---- LBL :CURSOR: the cell R32, R35 inverted (XOR): 4 columns of 4 rows (the dot and the gaps round it,
+@ x 19 + 3j to 22 + 3j, rows 192 - 3i to 195 - 3i); twice = off ----
+LBL 33                          ; :CURSOR:
+3
 GRMOD
 RCL 32
 3
@@ -380,8 +437,11 @@ AGRAPH 26
 0
 GRMOD
 RTN
-LBL 34                          ; :INFO:  ---- LBL :INFO: the texts of the cursor: line 1 the date, latitude and longitude; line 2 the zone on the
-XEQ 31                          ; -> :FIND:  date and the area; under the map the area's seasons. The cursor's area: the areas run in mode 1 ----
+@
+@ ---- LBL :INFO: the texts of the cursor: line 1 the date, latitude and longitude; line 2 the zone on the
+@ date and the area; under the map the area's seasons. The cursor's area: the areas run in mode 1 ----
+LBL 34                          ; :INFO:
+XEQ 31                          ; -> :FIND:
 197
 0
 CLLCDxy
@@ -400,7 +460,8 @@ RCL 34
 218
 230
 ATEXT Z
-RCL 37                          ; line 2: the zone and the area (the area found again for its texts and zone)
+@ line 2: the zone and the area (the area found again for its texts and zone)
+RCL 37
 X=0?
 XEQ 35                          ; -> :SUMMER:
 RCL 37
@@ -410,7 +471,8 @@ RCL 34
 198
 14
 ATEXT Z
-1                               ; under the map: the seasons
+@ under the map: the seasons
+1
 GRMOD
 "                                                  "
 36
@@ -423,13 +485,15 @@ RCL 73
 14
 ATEXT Z
 RTN
-LBL 35                          ; :SUMMER:  LBL :SUMMER: no area: the Summer Zones
+@ LBL :SUMMER: no area: the Summer Zones
+LBL 35                          ; :SUMMER:
 "SUMMER zone"
 STO 34
 "Summer all year"
 STO 73
 RTN
-LBL 36                          ; :FOUND:  LBL :FOUND: the area R37 run again in mode 2 (texts only: LBL :ZNOW: gives the zone, LBL :PC: draws nothing)
+@ LBL :FOUND: the area R37 run again in mode 2 (texts only: LBL :ZNOW: gives the zone, LBL :PC: draws nothing)
+LBL 36                          ; :FOUND:
 2
 STO 36
 RCL 37
@@ -453,7 +517,8 @@ x→α 34
 RCL 72
 x→α 34
 RTN
-LBL 37                          ; :ZS:  LBL :ZS:, :ZT:, :ZW: the name of the zone in R34
+@ LBL :ZS:, :ZT:, :ZW: the name of the zone in R34
+LBL 37                          ; :ZS:
 "SUMMER"
 STO 34
 RTN
@@ -465,7 +530,9 @@ LBL 39                          ; :ZW:
 "WINTER"
 STO 34
 RTN
-LBL 40                          ; :LATLON:  ---- LBL :LATLON: R34 = " 34.5N 18E": the centre of the cell, latitude 79.5 - 3i, longitude -171 + 3j ----
+@
+@ ---- LBL :LATLON: R34 = " 34.5N 18E": the centre of the cell, latitude 79.5 - 3i, longitude -171 + 3j ----
+LBL 40                          ; :LATLON:
 RCL 32
 3
 ×
@@ -518,7 +585,9 @@ LBL 42                          ; :WEST:
 "W"
 STO 48
 RTN
-LBL 43                          ; :DTEXT:  ---- LBL :DTEXT: R34 = "Fri 23 Oct 2026" for the JD in X (noon) ----
+@
+@ ---- LBL :DTEXT: R34 = "Fri 23 Oct 2026" for the JD in X (noon) ----
+LBL 43                          ; :DTEXT:
 XEQ 45                          ; -> :CAL:
 RCL 44
 1
@@ -547,7 +616,8 @@ x→α 34
 RCL 62
 αIP 34
 RTN
-LBL 44                          ; :NAME3:  LBL :NAME3: 3 letters from position X of R88 (the days at 0, the months at 21 + 3 (month - 1))
+@ LBL :NAME3: 3 letters from position X of R88 (the days at 0, the months at 21 + 3 (month - 1))
+LBL 44                          ; :NAME3:
 RCL 88
 STO 47
 R↓
@@ -555,8 +625,11 @@ R↓
 3
 αLEFT 47
 RTN
-LBL 45                          ; :CAL:  ---- LBL :CAL: the calendar date of the JD in X (Fliegel and Van Flandern, as ZONE47): R44 the day number,
-0.5                             ; R60 the day, R61 the month, R62 the year (R45-R47, R55-R56 work) ----
+@
+@ ---- LBL :CAL: the calendar date of the JD in X (Fliegel and Van Flandern, as ZONE47): R44 the day number,
+@ R60 the day, R61 the month, R62 the year (R45-R47, R55-R56 work) ----
+LBL 45                          ; :CAL:
+0.5
 +
 IP
 STO 44
@@ -637,7 +710,9 @@ RCL 56
 +
 STO 62
 RTN
-LBL 46                          ; :LEGEND:  ---- LBL :LEGEND: the keys and the patterns (tinyFont), drawn with each date ----
+@
+@ ---- LBL :LEGEND: the keys and the patterns (tinyFont), drawn with each date ----
+LBL 46                          ; :LEGEND:
 10
 GRFNT
 "LOAD LINES 1966 ANNEX II (IMO), SHIPS OVER 100 m"
@@ -655,7 +730,9 @@ ATEXT Z
 21
 GRFNT
 RTN
-LBL 47                          ; :INIT:  ---- LBL :INIT: the start: the patterns, the names, the cursor (34.5N 018E: off Libya), the screen ----
+@
+@ ---- LBL :INIT: the start: the patterns, the names, the cursor (34.5N 018E: off Libya), the screen ----
+LBL 47                          ; :INIT:
 WSIZE 64
 1111#2
 STO 26
@@ -665,7 +742,8 @@ STO 88
 STO 32
 63
 STO 35
-CLLCD                           ; the screen: the map, the legend, the cursor; R89 = 0 (no area drawn yet), then the date's areas
+@ the screen: the map, the legend, the cursor; R89 = 0 (no area drawn yet), then the date's areas
+CLLCD
 0
 GRMOD
 XEQ 48                          ; -> :MAP:
@@ -675,10 +753,13 @@ STO 89
 XEQ 33                          ; -> :CURSOR:
 XEQ 19                          ; -> :TODAY:
 RTN
-LBL 48                          ; :MAP:  ---- LBL :MAP: the dot map, one dot column a step group (as ZONE47) ----
+@
+@ ---- LBL :MAP: the dot map, one dot column a step group (as ZONE47) ----
+LBL 48                          ; :MAP:
 20
 STO 25
-0                               ; ==== MAP (written by tools/build_zone47.py from python/worldmap.py)
+@ ==== MAP (written by tools/build_zone47.py from python/worldmap.py)
+0
 0
 0
 XEQ 49                          ; -> :COL:  dot column 0 (x 20)
@@ -1184,10 +1265,14 @@ AGRAPH 22
 3
 STO+ 25
 RTN
-LBL 01                          ; area 1: "Tropical Zone"  ==== AREAS (written by tools/build_load47.py from python/loadzones.py: LBL nn, the name STO 72, the
-"Tropical Zone"                 ; season text STO 73, the zone STO 74, the seasons STO 75-80, XEQ :ZNOW:, RCL 90, X=0?, RTN, the pieces
-STO 72                          ; (L n row x) with XEQ :PC:, RTN;
-"Tropical all year"             ; then the rows LBL 50 + i: their runs "100 last column + area" with XEQ :RUN:, RTN)
+@ ==== AREAS (written by tools/build_load47.py from python/loadzones.py: LBL nn, the name STO 72, the
+@ season text STO 73, the zone STO 74, the seasons STO 75-80, XEQ :ZNOW:, RCL 90, X=0?, RTN, the pieces
+@ (L n row x) with XEQ :PC:, RTN;
+@ then the rows LBL 50 + i: their runs "100 last column + area" with XEQ :RUN:, RTN)
+LBL 01                          ; area 1: "Tropical Zone"
+"Tropical Zone"
+STO 72
+"Tropical all year"
 STO 73
 1
 STO 74

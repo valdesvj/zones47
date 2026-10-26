@@ -76,7 +76,8 @@ The stops come from the computer's tz database (on Linux `/usr/share/zoneinfo`, 
 | `programs_rem/ZONE47.txt` | the commented source (STRUCT, named labels) — edit this one |
 | `programs/ZONE47.txt`, `build/ZONE47.txt` | the calculator program (to convert with rejig) |
 | `listings/` | numbered steps with comments, the local labels |
-| `build/forum/ZONE47.p47u`, `LOAD47.p47u` | the same programs as commented rejig sources: an `@` header (Index, Author, Version, Source, Tested, Input, Output), the steps indented, the comments after `;` (rejig drops them: no memory); written by both builds (`tools/build_forum.py`), checked by `tests/test_forum.py` |
+| `build/forum/ZONE47.p47u`, `LOAD47.p47u` | the files for the forum and the C47's PROGRAMS folder: the `@` metadata (Index, Author, Version, Source, Tested, Input, Output), how to use them in plain words (`tools/forum/*.txt`), then the steps indented with the source's comments as `@` lines and notes after `;` (rejig compiles neither: no memory, no REM step); written by both builds (`tools/build_forum.py`), checked by `tests/test_forum.py` |
+| `tools/build_p47.py` | on your computer with rejig: `build/p47/ZONE47.p47` and `LOAD47.p47` from the forum files (`--validate=r47`), checked byte for byte against the plain listings' |
 | `python/worldmap.py` | the dot map (`tools/make_map.py`, land/sea from the GLOBE 1 km data, NOAA) |
 | `python/zones.py` | the stops and their DST rules (`tools/make_zones.py`, from tzdata) |
 | `python/c47sim.py`, `stdfont.py`, `tinyfont.py` | the C47 simulator and fonts, from Almanac 47 |

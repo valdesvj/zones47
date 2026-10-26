@@ -1,0 +1,22 @@
+---- What it is ----
+Load 47 shows the load line zones and seasonal areas of the world (IMO International Convention on Load Lines
+1966, Annex II, as amended) on a dot map, for a date: which waters are in the Summer, Tropical or Winter zone that
+day, for ships over 100 m. A cursor gives a cell's latitude and longitude, its zone on the date, the area and its
+seasons. INDICATIVE ONLY: 3 degrees a cell; the official boundaries are those of Annex II and its chart.
+
+---- How to use it ----
+Load LOAD47 and press XEQ LOAD47. It starts on the calculator's date.
+  8 4 6 2   move the cursor (around at the edges)
+  7 9       15 days back / on (the zones are drawn again where they change)
+  1         back to the clock's date
+  0         the end
+On the map: a tropical sea cell has one dot, a winter one two dots on a diagonal, summer nothing; land is solid.
+
+---- What it changes on your calculator ----
+Your stack and LASTx are given back at the end. It uses the registers R20-R92 and clears them at the end; R00-R19
+and R93-R99 are yours. No variable or matrix is left behind. GRMOD 0 and GRFNT 20 are set at the end.
+
+---- Programs and labels ----
+One program, LOAD47, with one global label (LOAD47). The areas (LBL 01-nn), the cursor's rows (LBL 50-94, called
+with XEQ IND) and every routine are local labels. Written with the STRUCT commands, ATEXT and GRFNT of the C47 / R47
+firmware (00.109.05.00a0.ALPHA of 5 Oct 2026 or later).

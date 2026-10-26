@@ -141,3 +141,13 @@
 - Steps: start 12 973 (map 3 400 of them), a cursor move 371, a new date about 2 000 (no area changes) to
   5 500 (three areas change, 23 Oct -> 7 Nov). Size: 3 131 steps, about 15.5 KB (was 9.3 KB: the pieces).
 - Tests as before, all OK.
+
+## Oct 26, 2026 - the forum files for new users (branch claude/zones47-forum2)
+
+- The commit of claude/zones47-forum (Oct 23) brought onto main (cherry-pick), then as Logic 47's and Chess 47's:
+  after the '@' metadata the narrative of tools/forum/ZONE47.txt and LOAD47.txt (What it is, How to use it, What it
+  changes on your calculator, Programs and labels), then the source's header as technical notes; the comment blocks
+  as whole '@' lines before their steps, the label and data notes after ';'. The old branch can be deleted.
+- tools/build_p47.py (with rejig on Victor's computer): build/p47/ZONE47.p47 and LOAD47.p47, each checked against
+  its plain listing (the check of Oct 23's "Not yet checked with rejig"). tests/test_forum.py.
+
