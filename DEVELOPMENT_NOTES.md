@@ -87,6 +87,18 @@
   (Oct 23): the stack and LASTx came back. 22 steps fewer each: ZONE47 2 007, LOAD47 3 109.
 - c47sim: STOS / RCLS copied from Almanac 47 (branch c47sim-stos-rcls). test_zone47, test_load47 ALL OK.
 
+## Oct 23, 2026 - the commented rejig sources build/forum/ZONE47.p47u and LOAD47.p47u (Victor)
+
+- As Almanac 47's build/forum: an '@' header (Index, Author, Version, Source, Tested, Input, Output, then the
+  source's header comments), the steps of build/*.txt indented as the source (STRUCT), the source's REM lines
+  after ';' on the steps they stand before (one comment line a step, in a column; the rest of a long block on the
+  last step of it), label names on LBL / XEQ / GTO (-> :INIT:), notes on the data the build writes (each stop:
+  its UTC offset and map column, each DST rule, each map column; each area of LOAD47 and each cursor row).
+- rejig drops what follows ';', so the .p47 is that of build/*.txt; a line starting with ';' or '#' would be a
+  REM step (Almanac 47 DEVELOPMENT_NOTES): none. tests/test_forum.py checks the steps against build/ and the header.
+- tools/build_forum.py, run at the end of tools/build_zone47.py and tools/build_load47.py. Not yet checked with
+  rejig (not in the cloud session): rejig the .p47u and the plain build/*.txt, the two .p47 should be the same size.
+
 ## To do
 
 1. Run on Victor's C47 (convert build/ZONE47.txt with rejig).
@@ -129,3 +141,13 @@
 - Steps: start 12 973 (map 3 400 of them), a cursor move 371, a new date about 2 000 (no area changes) to
   5 500 (three areas change, 23 Oct -> 7 Nov). Size: 3 131 steps, about 15.5 KB (was 9.3 KB: the pieces).
 - Tests as before, all OK.
+
+## Oct 26, 2026 - the forum files for new users (branch claude/zones47-forum2)
+
+- The commit of claude/zones47-forum (Oct 23) brought onto main (cherry-pick), then as Logic 47's and Chess 47's:
+  after the '@' metadata the narrative of tools/forum/ZONE47.txt and LOAD47.txt (What it is, How to use it, What it
+  changes on your calculator, Programs and labels), then the source's header as technical notes; the comment blocks
+  as whole '@' lines before their steps, the label and data notes after ';'. The old branch can be deleted.
+- tools/build_p47.py (with rejig on Victor's computer): build/p47/ZONE47.p47 and LOAD47.p47, each checked against
+  its plain listing (the check of Oct 23's "Not yet checked with rejig"). tests/test_forum.py.
+

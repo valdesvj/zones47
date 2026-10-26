@@ -1,0 +1,27 @@
+---- What it is ----
+Zones 47 shows the world's time zones on a dot map of the world. Each standard offset of the official IANA time
+zone database (from UTC-12 to UTC+14) is a stop; at each stop it shows the time and date there, the cities of every
+country that uses it, and each city's daylight saving time, worked out for today's date (north and south). The
+calculator's own zone is marked, so you can read the difference at a glance.
+
+---- How to use it ----
+Load ZONE47 and press XEQ ZONE47. The first time it asks TZ, the offset of your calculator's clock from UT in hours
+(4 for UT+4, -5.5 for UT-5:30, summer time included); R/S keeps the value shown. It is kept for the next runs.
+  4         the stop to the west (a smaller offset)        5 or 6   the stop to the east
+  8 2       the city before / after in the stop (each with its own daylight saving)
+  0         the end
+The header shows the stop's offset, its time and date, your clock and the difference; under the map the city, its
+country and its daylight saving now. The column of the stop is highlighted and a triangle marks your own zone. The
+time updates every minute while it waits for a key.
+
+---- What it changes on your calculator ----
+Your stack and LASTx are given back at the end. It uses the registers R20-R84 and clears them at the end; R00-R19
+and R85-R99 are yours. It keeps one variable, TZ (your clock's offset; Almanac 47's MOON47 reads the same TZ).
+GRMOD 0 and GRFNT 20 are set at the end.
+
+---- Programs and labels ----
+One program, ZONE47, with one global label (ZONE47). The stops (LBL 01-nn, called with XEQ IND), the daylight
+saving rules and every routine are local labels. Written with the STRUCT commands, ATEXT and GRFNT of the C47 / R47
+firmware (00.109.05.00a0.ALPHA of 5 Oct 2026 or later). The cities and rules come from the computer's tzdata when
+the program is built. A city can be added in the program (its stop's list of cities); take care with its daylight
+saving rule and the counts, and keep a copy first.
