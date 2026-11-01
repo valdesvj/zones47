@@ -69,7 +69,7 @@
 @ note AN0007), indented two spaces per level; tools/build_zone47.py checks them and numbers them.
 @
 
-LBL "ZONE47"
+LBL "ZONE47"                    ; ZONE47 - the start (the narrative above says what it does and how to use it)
 @ the user's stack in the local registers: STOS R.00 (R.00-R.07, the 8 levels), then LASTx in R.08
 LocR 9
 STOS R.00
@@ -223,6 +223,7 @@ RCL 75
 -
 STO 82
 RTN
+@ LBL :PART3: the city is in the third part of the list (R74, its place less R76)
 LBL 61                          ; :PART3:
 RCL 74
 STO 78
@@ -243,6 +244,7 @@ STO 80
 XEQ 59                          ; -> :CITY:
 XEQ 72                          ; -> :HEAD:
 RTN
+@ LBL :CDOWN: the city after (the last one -> 1), then the header
 LBL 63                          ; :CDOWN:
 RCL 80
 RCL 77
@@ -493,6 +495,7 @@ RCL 25
 15
 STO 27
 DROP
+@ the last 10 rows of the band: 15 columns of the 10-row word R24, one a round (R27 counts down)
 DO 04
   AGRAPH 24
   DSE 27
@@ -506,6 +509,7 @@ LBL 69                          ; :R64:
 15
 STO 27
 DROP
+@ 15 columns of the 64-row word R23, one AGRAPH a round (R27 counts down)
 DO 05
   AGRAPH 23
   DSE 27
@@ -677,6 +681,7 @@ LBL 75                          ; :SAME:
 "same time"
 STO 34
 RTN
+@ LBL :DIFF: " +h:mm h", the difference R39 from your clock
 LBL 76                          ; :DIFF:
 " "
 STO 34
@@ -943,6 +948,7 @@ RCL 43
 STO 27
 99
 STO 39
+@ every stop, R27 from the last (nn) down to 1
 DO 06
   RCL 27
   STO 32
@@ -1032,6 +1038,7 @@ LBL 90                          ; :SCALE:
 25
 STO 27
 DROP
+@ 25 ticks one zone apart (15 pixels: AGRAPH moves x on 1, + 14), R27 counts them
 DO 07
   AGRAPH 26
   14

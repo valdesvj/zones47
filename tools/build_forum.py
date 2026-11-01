@@ -132,6 +132,8 @@ def build(name):
         mm = re.fullmatch(r'(LBL|XEQ|GTO) (\d\d)', step)
         if mm and mm.group(2) in names:
             note = names[mm.group(2)] if mm.group(1) == 'LBL' else '-> ' + names[mm.group(2)]
+        if step == 'LBL "%s"' % name:                          # the program's start: what the narrative above says
+            note = '%s - the start (the narrative above says what it does and how to use it)' % name
         if k in data:
             note = (note + '  ' if note else '') + data[k]
         line = ind + step

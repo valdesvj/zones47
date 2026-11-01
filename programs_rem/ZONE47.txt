@@ -175,6 +175,7 @@ RCL 75
 -
 STO 82
 RTN
+REM LBL :PART3: the city is in the third part of the list (R74, its place less R76)
 LBL :PART3:
 RCL 74
 STO 78
@@ -194,6 +195,7 @@ STO 80
 XEQ :CITY:
 XEQ :HEAD:
 RTN
+REM LBL :CDOWN: the city after (the last one -> 1), then the header
 LBL :CDOWN:
 RCL 80
 RCL 77
@@ -440,6 +442,7 @@ RCL 25
 15
 STO 27
 DROP
+REM the last 10 rows of the band: 15 columns of the 10-row word R24, one a round (R27 counts down)
 DO
   AGRAPH 24
   DSE 27
@@ -453,6 +456,7 @@ LBL :R64:
 15
 STO 27
 DROP
+REM 15 columns of the 64-row word R23, one AGRAPH a round (R27 counts down)
 DO
   AGRAPH 23
   DSE 27
@@ -622,6 +626,7 @@ LBL :SAME:
 "same time"
 STO 34
 RTN
+REM LBL :DIFF: " +h:mm h", the difference R39 from your clock
 LBL :DIFF:
 " "
 STO 34
@@ -881,6 +886,7 @@ RCL 43
 STO 27
 99
 STO 39
+REM every stop, R27 from the last (nn) down to 1
 DO
   RCL 27
   STO 32
@@ -968,6 +974,7 @@ LBL :SCALE:
 25
 STO 27
 DROP
+REM 25 ticks one zone apart (15 pixels: AGRAPH moves x on 1, + 14), R27 counts them
 DO
   AGRAPH 26
   14

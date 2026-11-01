@@ -30,6 +30,7 @@ STO R.08
 XEQ :INIT:
 REM ---- keys: 8 4 6 2 the cursor, 7 9 the date, 1 today, 0 the end ----
 DO
+  REM the key wait: PAUSE 50 shows the screen, KEY? 33 reads the key
   DO
     PAUSE 50
     KEY? 33
@@ -116,14 +117,17 @@ LBL :BACK:
 STO+ 31
 XEQ :NEWDAY:
 RTN
+REM LBL :FWD: 15 days on
 LBL :FWD:
 15
 STO+ 31
 XEQ :NEWDAY:
 RTN
+REM LBL :TODAY: the clock's date again (no days moved)
 LBL :TODAY:
 0
 STO 31
+REM LBL :NEWDAY: the date R31 days from the clock's: its JD, the areas that changed, the texts
 LBL :NEWDAY:
 XEQ :DATE:
 XEQ :AREAS:
@@ -157,6 +161,7 @@ STO 36
 GRMOD
 REM ==== NAREAS (written by tools/build_load47.py: the number of areas)
 STO 38
+REM every area, R38 from the last down to 1: its label redraws it when its zone changed
 DO
   XEQ IND 38
   DSE 38
@@ -269,10 +274,12 @@ RTN
 RCL 43
 STO 40
 RTN
+REM LBL :INC: one more condition met (R46 + 1)
 LBL :INC:
 1
 STO+ 46
 RTN
+REM LBL :NEED1: a season over the new year: one condition is enough (R49 = 1)
 LBL :NEED1:
 1
 STO 49
@@ -314,6 +321,7 @@ RCL 45
 RCL 25
 XEQ :PL:
 RTN
+REM LBL :PLO: the lower rows of the piece, at x + 1
 LBL :PLO:
 RCL 48
 STO 50
@@ -328,6 +336,7 @@ LBL :PL:
 RCL 46
 STO 47
 R↓
+REM R46 columns of the pattern R50, every third pixel column (AGRAPH moves x on 1, + 2)
 DO
   AGRAPH 50
   2
@@ -348,6 +357,8 @@ RCL 32
 STO 41
 XEQ IND 41
 RTN
+REM LBL :RUN: one run of the cursor's row, X = 100 x its last column + its area: when the cursor's
+REM column is not past it, that area is the cell's (R37; R43 = 1: found, the next runs return at once)
 LBL :RUN:
 RCL 43
 X≠0?
@@ -474,10 +485,12 @@ LBL :ZS:
 "SUMMER"
 STO 34
 RTN
+REM LBL :ZT: TROPICAL
 LBL :ZT:
 "TROPICAL"
 STO 34
 RTN
+REM LBL :ZW: WINTER
 LBL :ZW:
 "WINTER"
 STO 34
@@ -528,10 +541,12 @@ XEQ :WEST:
 RCL 48
 x→α 34
 RTN
+REM LBL :SOUTH: "S " for a southern latitude
 LBL :SOUTH:
 "S "
 STO 48
 RTN
+REM LBL :WEST: "W" for a western longitude
 LBL :WEST:
 "W"
 STO 48
@@ -706,6 +721,8 @@ LBL :MAP:
 STO 25
 REM ==== MAP (written by tools/build_zone47.py from python/worldmap.py)
 RTN
+REM LBL :COL: one dot column of the map: Z Y X the words of its three bands (rows 61, 106, 151 up),
+REM each written twice (a dot is 2 pixels wide); then x + 3 for the next column
 LBL :COL:
 SINT
 STO 20

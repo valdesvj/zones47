@@ -57,7 +57,7 @@
 @ month names, R89 the zones drawn, R90-R92 the change.
 @
 
-LBL "LOAD47"
+LBL "LOAD47"                    ; LOAD47 - the start (the narrative above says what it does and how to use it)
 @ the user's stack in the local registers: STOS R.00 (R.00-R.07, the 8 levels), then LASTx in R.08
 LocR 9
 STOS R.00
@@ -67,6 +67,7 @@ XEQ 47                          ; -> :INIT:
 @
 @ ---- keys: 8 4 6 2 the cursor, 7 9 the date, 1 today, 0 the end ----
 DO 01
+@   the key wait: PAUSE 50 shows the screen, KEY? 33 reads the key
   DO 02
     PAUSE 50
     KEY? 33
@@ -156,14 +157,17 @@ LBL 17                          ; :BACK:
 STO+ 31
 XEQ 20                          ; -> :NEWDAY:
 RTN
+@ LBL :FWD: 15 days on
 LBL 18                          ; :FWD:
 15
 STO+ 31
 XEQ 20                          ; -> :NEWDAY:
 RTN
+@ LBL :TODAY: the clock's date again (no days moved)
 LBL 19                          ; :TODAY:
 0
 STO 31
+@ LBL :NEWDAY: the date R31 days from the clock's: its JD, the areas that changed, the texts
 LBL 20                          ; :NEWDAY:
 XEQ 21                          ; -> :DATE:
 XEQ 22                          ; -> :AREAS:
@@ -200,6 +204,7 @@ GRMOD
 @ ==== NAREAS (written by tools/build_load47.py: the number of areas)
 16
 STO 38
+@ every area, R38 from the last down to 1: its label redraws it when its zone changed
 DO 03
   XEQ IND 38
   DSE 38
@@ -313,10 +318,12 @@ RTN
 RCL 43
 STO 40
 RTN
+@ LBL :INC: one more condition met (R46 + 1)
 LBL 25                          ; :INC:
 1
 STO+ 46
 RTN
+@ LBL :NEED1: a season over the new year: one condition is enough (R49 = 1)
 LBL 26                          ; :NEED1:
 1
 STO 49
@@ -359,6 +366,7 @@ RCL 45
 RCL 25
 XEQ 30                          ; -> :PL:
 RTN
+@ LBL :PLO: the lower rows of the piece, at x + 1
 LBL 29                          ; :PLO:
 RCL 48
 STO 50
@@ -373,6 +381,7 @@ LBL 30                          ; :PL:
 RCL 46
 STO 47
 R↓
+@ R46 columns of the pattern R50, every third pixel column (AGRAPH moves x on 1, + 2)
 DO 04
   AGRAPH 50
   2
@@ -394,6 +403,8 @@ RCL 32
 STO 41
 XEQ IND 41
 RTN
+@ LBL :RUN: one run of the cursor's row, X = 100 x its last column + its area: when the cursor's
+@ column is not past it, that area is the cell's (R37; R43 = 1: found, the next runs return at once)
 LBL 32                          ; :RUN:
 RCL 43
 X≠0?
@@ -522,10 +533,12 @@ LBL 37                          ; :ZS:
 "SUMMER"
 STO 34
 RTN
+@ LBL :ZT: TROPICAL
 LBL 38                          ; :ZT:
 "TROPICAL"
 STO 34
 RTN
+@ LBL :ZW: WINTER
 LBL 39                          ; :ZW:
 "WINTER"
 STO 34
@@ -577,10 +590,12 @@ XEQ 42                          ; -> :WEST:
 RCL 48
 x→α 34
 RTN
+@ LBL :SOUTH: "S " for a southern latitude
 LBL 41                          ; :SOUTH:
 "S "
 STO 48
 RTN
+@ LBL :WEST: "W" for a western longitude
 LBL 42                          ; :WEST:
 "W"
 STO 48
@@ -1240,6 +1255,8 @@ XEQ 49                          ; -> :COL:  dot column 118 (x 374)
 0
 XEQ 49                          ; -> :COL:  dot column 119 (x 377)
 RTN
+@ LBL :COL: one dot column of the map: Z Y X the words of its three bands (rows 61, 106, 151 up),
+@ each written twice (a dot is 2 pixels wide); then x + 3 for the next column
 LBL 49                          ; :COL:
 SINT
 STO 20
