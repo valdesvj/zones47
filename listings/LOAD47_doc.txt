@@ -30,6 +30,7 @@
    6  XEQ :INIT:    (47)
       ; ---- keys: 8 4 6 2 the cursor, 7 9 the date, 1 today, 0 the end ----
    7  DO    (01)
+        ; the key wait: PAUSE 50 shows the screen, KEY? 33 reads the key
    8    DO    (02)
    9      PAUSE 50
   10      KEY? 33
@@ -116,14 +117,17 @@
   84  STO+ 31
   85  XEQ :NEWDAY:    (20)
   86  RTN
+      ; LBL :FWD: 15 days on
   87  LBL :FWD:    (18)
   88  15
   89  STO+ 31
   90  XEQ :NEWDAY:    (20)
   91  RTN
+      ; LBL :TODAY: the clock's date again (no days moved)
   92  LBL :TODAY:    (19)
   93  0
   94  STO 31
+      ; LBL :NEWDAY: the date R31 days from the clock's: its JD, the areas that changed, the texts
   95  LBL :NEWDAY:    (20)
   96  XEQ :DATE:    (21)
   97  XEQ :AREAS:    (22)
@@ -158,6 +162,7 @@
       ; ==== NAREAS (written by tools/build_load47.py: the number of areas)
  123  16
  124  STO 38
+      ; every area, R38 from the last down to 1: its label redraws it when its zone changed
  125  DO    (03)
  126    XEQ IND 38
  127    DSE 38
@@ -270,10 +275,12 @@
  225  RCL 43
  226  STO 40
  227  RTN
+      ; LBL :INC: one more condition met (R46 + 1)
  228  LBL :INC:    (25)
  229  1
  230  STO+ 46
  231  RTN
+      ; LBL :NEED1: a season over the new year: one condition is enough (R49 = 1)
  232  LBL :NEED1:    (26)
  233  1
  234  STO 49
@@ -315,6 +322,7 @@
  265  RCL 25
  266  XEQ :PL:    (30)
  267  RTN
+      ; LBL :PLO: the lower rows of the piece, at x + 1
  268  LBL :PLO:    (29)
  269  RCL 48
  270  STO 50
@@ -329,6 +337,7 @@
  278  RCL 46
  279  STO 47
  280  R↓
+      ; R46 columns of the pattern R50, every third pixel column (AGRAPH moves x on 1, + 2)
  281  DO    (04)
  282    AGRAPH 50
  283    2
@@ -349,6 +358,8 @@
  296  STO 41
  297  XEQ IND 41
  298  RTN
+      ; LBL :RUN: one run of the cursor's row, X = 100 x its last column + its area: when the cursor's
+      ; column is not past it, that area is the cell's (R37; R43 = 1: found, the next runs return at once)
  299  LBL :RUN:    (32)
  300  RCL 43
  301  X≠0?
@@ -475,10 +486,12 @@
  413  "SUMMER"
  414  STO 34
  415  RTN
+      ; LBL :ZT: TROPICAL
  416  LBL :ZT:    (38)
  417  "TROPICAL"
  418  STO 34
  419  RTN
+      ; LBL :ZW: WINTER
  420  LBL :ZW:    (39)
  421  "WINTER"
  422  STO 34
@@ -529,10 +542,12 @@
  466  RCL 48
  467  x→α 34
  468  RTN
+      ; LBL :SOUTH: "S " for a southern latitude
  469  LBL :SOUTH:    (41)
  470  "S "
  471  STO 48
  472  RTN
+      ; LBL :WEST: "W" for a western longitude
  473  LBL :WEST:    (42)
  474  "W"
  475  STO 48
@@ -1187,6 +1202,8 @@
 1115  0
 1116  XEQ :COL:    (49)
 1117  RTN
+      ; LBL :COL: one dot column of the map: Z Y X the words of its three bands (rows 61, 106, 151 up),
+      ; each written twice (a dot is 2 pixels wide); then x + 3 for the next column
 1118  LBL :COL:    (49)
 1119  SINT
 1120  STO 20
